@@ -1,0 +1,1543 @@
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+
+/* ═══════════════════════════════════════════════════════════════
+   TICOFLOW BRAND TOKENS
+═══════════════════════════════════════════════════════════════ */
+const BRAND = {
+  green:   "#5CC831",
+  teal:    "#1DAF8E",
+  blue:    "#1565C0",
+  grad:    "linear-gradient(135deg, #5CC831 0%, #1DAF8E 50%, #1565C0 100%)",
+  gradH:   "linear-gradient(135deg, #6CD93E 0%, #22C4A0 50%, #1A7BD4 100%)",
+  gradBtn: "linear-gradient(135deg, #4DBF28 0%, #1DAF8E 100%)",
+  bg:      "#060D16",
+  surface: "#0B1420",
+  card:    "rgba(11,20,32,0.9)",
+  border:  "rgba(29,175,142,0.12)",
+  borderHover: "rgba(92,200,49,0.3)",
+  text:    "#E8F5E9",
+  muted:   "#90A4AE",
+  dimmed:  "#37474F",
+};
+
+/* ═══════════════════════════════════════════════════════════════
+   HUMMINGBIRD SVG LOGO
+═══════════════════════════════════════════════════════════════ */
+function HummingbirdIcon({ size = 36, style = {} }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" style={style}>
+      <defs>
+        <linearGradient id="hbGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#5CC831"/>
+          <stop offset="50%" stopColor="#1DAF8E"/>
+          <stop offset="100%" stopColor="#1565C0"/>
+        </linearGradient>
+      </defs>
+      {/* Wing upper */}
+      <path d="M20 38 C30 18, 62 14, 72 30 C62 32, 42 36, 20 38Z" fill="url(#hbGrad)" opacity="0.9"/>
+      {/* Wing lower */}
+      <path d="M24 44 C34 36, 60 34, 68 44 C58 44, 40 44, 24 44Z" fill="url(#hbGrad)" opacity="0.7"/>
+      {/* Body */}
+      <ellipse cx="75" cy="52" rx="22" ry="14" fill="url(#hbGrad)"/>
+      {/* Head */}
+      <circle cx="88" cy="44" r="11" fill="url(#hbGrad)"/>
+      {/* Eye */}
+      <circle cx="92" cy="41" r="2.5" fill="white" opacity="0.9"/>
+      <circle cx="92.8" cy="40.2" r="1" fill="#0B1420"/>
+      {/* Beak */}
+      <path d="M97 43 L118 38" stroke="url(#hbGrad)" strokeWidth="3.5" strokeLinecap="round"/>
+      {/* Tail */}
+      <path d="M55 58 C50 68, 44 80, 38 90 C44 88, 52 82, 56 76" fill="url(#hbGrad)" opacity="0.8"/>
+      <path d="M58 60 C54 72, 50 86, 46 96 C50 92, 56 84, 60 76" fill="url(#hbGrad)" opacity="0.6"/>
+    </svg>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   GLOBAL STYLES
+═══════════════════════════════════════════════════════════════ */
+const GLOBAL_CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800;900&family=Sora:wght@400;600;700;800&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 14px; }
+  body { background: #060D16; color: #E8F5E9; font-family: 'Nunito', sans-serif; }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(29,175,142,0.3); border-radius: 10px; }
+  input, textarea, select { outline: none; }
+  button { cursor: pointer; font-family: 'Nunito', sans-serif; }
+  * { -webkit-font-smoothing: antialiased; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+  @keyframes toastIn { from { opacity: 0; transform: translateX(120%); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+  @keyframes shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+  @keyframes gradMove { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+
+  .fade-in { animation: fadeIn 0.3s ease both; }
+  .slide-in { animation: slideIn 0.28s ease both; }
+  .scale-in { animation: scaleIn 0.2s ease both; }
+  .float { animation: float 3s ease-in-out infinite; }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #4DBF28 0%, #1DAF8E 100%);
+    color: white; border: none; border-radius: 12px;
+    padding: 10px 22px; font-weight: 800; font-size: 13px;
+    font-family: 'Nunito', sans-serif;
+    letter-spacing: 0.02em; cursor: pointer;
+    transition: all 0.2s; box-shadow: 0 4px 18px rgba(29,175,142,0.35);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(29,175,142,0.5); filter: brightness(1.08); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-ghost {
+    background: rgba(29,175,142,0.07); color: #90A4AE;
+    border: 1px solid rgba(29,175,142,0.15); border-radius: 12px;
+    padding: 9px 18px; font-weight: 600; font-size: 13px;
+    font-family: 'Nunito', sans-serif; transition: all 0.15s;
+  }
+  .btn-ghost:hover { background: rgba(29,175,142,0.13); color: #E8F5E9; border-color: rgba(29,175,142,0.35); }
+
+  .btn-danger {
+    background: rgba(239,68,68,0.12); color: #f87171;
+    border: 1px solid rgba(239,68,68,0.22); border-radius: 12px;
+    padding: 9px 18px; font-weight: 700; font-size: 13px;
+    font-family: 'Nunito', sans-serif; transition: all 0.15s;
+  }
+  .btn-danger:hover { background: rgba(239,68,68,0.22); }
+
+  .input-field {
+    width: 100%; background: rgba(29,175,142,0.05);
+    border: 1px solid rgba(29,175,142,0.14); border-radius: 10px;
+    padding: 10px 14px; color: #E8F5E9; font-size: 13px;
+    font-family: 'Nunito', sans-serif; transition: border-color 0.15s;
+  }
+  .input-field:focus { border-color: rgba(92,200,49,0.55); background: rgba(92,200,49,0.04); }
+  .input-field::placeholder { color: #37474F; }
+
+  .select-field {
+    width: 100%; background: rgba(29,175,142,0.05);
+    border: 1px solid rgba(29,175,142,0.14); border-radius: 10px;
+    padding: 10px 14px; color: #E8F5E9; font-size: 13px;
+    font-family: 'Nunito', sans-serif; appearance: none; transition: border-color 0.15s;
+  }
+  .select-field:focus { border-color: rgba(92,200,49,0.55); }
+  .select-field option { background: #0B1420; color: #E8F5E9; }
+
+  .card {
+    background: rgba(11,20,32,0.85);
+    border: 1px solid rgba(29,175,142,0.1);
+    border-radius: 18px; backdrop-filter: blur(14px);
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: rgba(29,175,142,0.22); }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+    backdrop-filter: blur(8px); z-index: 1000;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-box {
+    background: #0B1622; border: 1px solid rgba(29,175,142,0.2);
+    border-radius: 22px; width: 100%; max-width: 560px;
+    max-height: 90vh; overflow-y: auto;
+    animation: scaleIn 0.2s ease;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(92,200,49,0.05);
+  }
+
+  .table-row { transition: background 0.1s; }
+  .table-row:hover { background: rgba(29,175,142,0.05) !important; }
+
+  .nav-item { transition: all 0.15s; border-radius: 12px; }
+  .nav-item:hover { background: rgba(29,175,142,0.1) !important; color: #5CC831 !important; }
+  .nav-item.active { background: rgba(29,175,142,0.14) !important; color: #5CC831 !important; }
+
+  .tag { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 800; letter-spacing: 0.04em; }
+  .tag-vip { background: rgba(255,193,7,0.12); color: #FFD54F; }
+  .tag-frequent { background: rgba(29,175,142,0.14); color: #4DD0B8; }
+  .tag-new { background: rgba(92,200,49,0.13); color: #7BE050; }
+  .tag-corporate { background: rgba(21,101,192,0.15); color: #64B5F6; }
+  .tag-blacklist { background: rgba(239,68,68,0.12); color: #f87171; }
+
+  .status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 11px; border-radius: 20px; font-size: 11px; font-weight: 800; }
+  .status-pending { background: rgba(255,193,7,0.12); color: #FFD54F; }
+  .status-confirmed { background: rgba(92,200,49,0.13); color: #7BE050; }
+  .status-checked_in { background: rgba(29,175,142,0.15); color: #4DD0B8; }
+  .status-completed { background: rgba(21,101,192,0.15); color: #64B5F6; }
+  .status-cancelled { background: rgba(239,68,68,0.1); color: #f87171; }
+  .status-no_show { background: rgba(96,125,139,0.15); color: #90A4AE; }
+
+  .calendar-day { transition: all 0.15s; border-radius: 10px; cursor: pointer; }
+  .calendar-day:hover { background: rgba(29,175,142,0.08) !important; }
+  .calendar-day.today { background: rgba(92,200,49,0.1) !important; border: 1px solid rgba(92,200,49,0.35) !important; }
+  .calendar-day.selected { background: rgba(29,175,142,0.15) !important; border: 1px solid rgba(29,175,142,0.4) !important; }
+
+  .slide-panel {
+    position: fixed; right: 0; top: 0; bottom: 0; width: 420px;
+    background: #0C1623; border-left: 1px solid rgba(29,175,142,0.15);
+    z-index: 500; overflow-y: auto; animation: slideIn 0.25s ease;
+    box-shadow: -20px 0 70px rgba(0,0,0,0.6);
+  }
+
+  .progress-bar { background: rgba(255,255,255,0.07); border-radius: 6px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 6px; transition: width 0.6s ease; }
+
+  .grad-text {
+    background: linear-gradient(135deg, #5CC831, #1DAF8E, #1565C0);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .grad-border {
+    border: 1px solid transparent;
+    background: linear-gradient(#0B1420, #0B1420) padding-box, linear-gradient(135deg, #5CC831, #1DAF8E, #1565C0) border-box;
+  }
+`;
+
+/* ═══════════════════════════════════════════════════════════════
+   SEED DATA
+═══════════════════════════════════════════════════════════════ */
+const genId = () => Math.random().toString(36).slice(2, 10);
+const TODAY = "2026-03-08";
+
+const SERVICES = [
+  { id: "s1", name: "Suite Deluxe", category: "Hospedaje", price: 320, duration: null, capacity: 2, icon: "🛏️", active: true },
+  { id: "s2", name: "Tour Volcán Arenal", category: "Tours", price: 180, duration: 300, capacity: 15, icon: "🌋", active: true },
+  { id: "s3", name: "Rent a Car 4x4", category: "Transporte", price: 95, duration: 1440, capacity: 5, icon: "🚙", active: true },
+  { id: "s4", name: "Cena Gourmet", category: "Restaurante", price: 145, duration: 120, capacity: 2, icon: "🍃", active: true },
+  { id: "s5", name: "Wellness & Spa", category: "Bienestar", price: 75, duration: 90, capacity: 1, icon: "🌿", active: true },
+  { id: "s6", name: "Rafting Río Pacuare", category: "Aventura", price: 110, duration: 240, capacity: 10, icon: "🛶", active: true },
+];
+
+const CUSTOMERS_SEED = [
+  { id: "c1", firstName: "María", lastName: "Rodríguez", email: "maria@gmail.com", phone: "+506 8888 1234", whatsapp: "+506 8888 1234", nationality: "Costa Rica", tags: ["vip","frequent"], totalBookings: 24, totalSpent: 4820, lastVisit: "2026-03-01", notes: "Prefiere suites con vista al bosque. Vegetariana. Siempre pide toallas extra.", source: "website", createdAt: "2023-08-15" },
+  { id: "c2", firstName: "Robert", lastName: "Anderson", email: "rob@corp.com", phone: "+1 646 234 5678", whatsapp: "+1 646 234 5678", nationality: "USA", tags: ["corporate","frequent"], totalBookings: 18, totalSpent: 3240, lastVisit: "2026-02-28", notes: "Viajes de negocio. Requiere factura. Habitación silenciosa.", source: "referral", createdAt: "2023-11-02" },
+  { id: "c3", firstName: "Ana", lastName: "Vargas", email: "ana.v@hotmail.com", phone: "+506 7777 5678", whatsapp: "+506 7777 5678", nationality: "Costa Rica", tags: ["new"], totalBookings: 3, totalSpent: 460, lastVisit: "2026-03-05", notes: "", source: "instagram", createdAt: "2026-01-10" },
+  { id: "c4", firstName: "Luca", lastName: "Ferrari", email: "luca@gmail.it", phone: "+39 02 3456 7890", whatsapp: "+39 02 3456 7890", nationality: "Italia", tags: ["vip"], totalBookings: 11, totalSpent: 2890, lastVisit: "2026-02-14", notes: "Luna de miel. Decoración especial bienvenida.", source: "website", createdAt: "2024-02-01" },
+  { id: "c5", firstName: "Sofía", lastName: "Jiménez", email: "sofia.j@yahoo.com", phone: "+506 6666 9012", whatsapp: "+506 6666 9012", nationality: "Costa Rica", tags: ["frequent"], totalBookings: 9, totalSpent: 1260, lastVisit: "2026-03-03", notes: "", source: "walk-in", createdAt: "2024-06-20" },
+  { id: "c6", firstName: "James", lastName: "Carter", email: "j.carter@business.com", phone: "+1 212 678 9012", whatsapp: "", nationality: "USA", tags: ["corporate","vip"], totalBookings: 16, totalSpent: 5100, lastVisit: "2026-03-06", notes: "CEO. Suite premium. No fotografías sin autorización.", source: "referral", createdAt: "2023-05-10" },
+  { id: "c7", firstName: "Valentina", lastName: "Cruz", email: "vale.cruz@gmail.com", phone: "+506 8555 0123", whatsapp: "+506 8555 0123", nationality: "Costa Rica", tags: ["new"], totalBookings: 1, totalSpent: 180, lastVisit: "2026-03-08", notes: "", source: "instagram", createdAt: "2026-03-01" },
+  { id: "c8", firstName: "Klaus", lastName: "Müller", email: "k.muller@gmail.de", phone: "+49 30 8901 2345", whatsapp: "+49 30 8901 2345", nationality: "Alemania", tags: ["frequent"], totalBookings: 7, totalSpent: 1540, lastVisit: "2026-02-20", notes: "Ecoturismo. Prefiere tours de naturaleza y biodiversidad.", source: "website", createdAt: "2024-03-18" },
+];
+
+const BOOKINGS_SEED = [
+  { id:"b1", ref:"TF-2026-0041", customerId:"c1", serviceId:"s1", staffId:"u1", start:"2026-03-08T14:00:00", end:"2026-03-10T12:00:00", guests:2, basePrice:320, total:640, currency:"USD", status:"confirmed", payStatus:"paid", amountPaid:640, source:"website", notes:"Vista al bosque por favor", internalNotes:"Cliente VIP — upgrade aplicado", confirmSent:true, reminderSent:false, createdAt:"2026-03-01" },
+  { id:"b2", ref:"TF-2026-0042", customerId:"c2", serviceId:"s4", staffId:"u2", start:"2026-03-08T19:00:00", end:"2026-03-08T21:00:00", guests:2, basePrice:145, total:145, currency:"USD", status:"confirmed", payStatus:"paid", amountPaid:145, source:"whatsapp", notes:"", internalNotes:"", confirmSent:true, reminderSent:true, createdAt:"2026-03-05" },
+  { id:"b3", ref:"TF-2026-0043", customerId:"c3", serviceId:"s3", staffId:"u1", start:"2026-03-08T16:00:00", end:"2026-03-09T16:00:00", guests:1, basePrice:95, total:95, currency:"USD", status:"pending", payStatus:"pending", amountPaid:0, source:"instagram", notes:"", internalNotes:"", confirmSent:false, reminderSent:false, createdAt:"2026-03-07" },
+  { id:"b4", ref:"TF-2026-0044", customerId:"c7", serviceId:"s2", staffId:"u2", start:"2026-03-08T07:00:00", end:"2026-03-08T12:00:00", guests:2, basePrice:360, total:360, currency:"USD", status:"checked_in", payStatus:"paid", amountPaid:360, source:"instagram", notes:"", internalNotes:"Guía asignado: Carlos V.", confirmSent:true, reminderSent:true, createdAt:"2026-03-03" },
+  { id:"b5", ref:"TF-2026-0045", customerId:"c5", serviceId:"s5", staffId:"u1", start:"2026-03-08T09:00:00", end:"2026-03-08T10:30:00", guests:1, basePrice:75, total:75, currency:"USD", status:"confirmed", payStatus:"paid", amountPaid:75, source:"manual", notes:"", internalNotes:"", confirmSent:true, reminderSent:true, createdAt:"2026-03-01" },
+  { id:"b6", ref:"TF-2026-0038", customerId:"c6", serviceId:"s1", staffId:"u1", start:"2026-03-06T14:00:00", end:"2026-03-08T12:00:00", guests:1, basePrice:640, total:640, currency:"USD", status:"completed", payStatus:"paid", amountPaid:640, source:"referral", notes:"", internalNotes:"Suite Presidencial asignada", confirmSent:true, reminderSent:true, createdAt:"2026-02-28" },
+  { id:"b7", ref:"TF-2026-0039", customerId:"c8", serviceId:"s6", staffId:"u2", start:"2026-03-07T08:00:00", end:"2026-03-07T12:00:00", guests:4, basePrice:440, total:440, currency:"USD", status:"completed", payStatus:"paid", amountPaid:440, source:"website", notes:"Grupo de ecoturistas", internalNotes:"", confirmSent:true, reminderSent:true, createdAt:"2026-03-02" },
+  { id:"b8", ref:"TF-2026-0033", customerId:"c4", serviceId:"s4", staffId:"u2", start:"2026-03-05T20:00:00", end:"2026-03-05T22:00:00", guests:2, basePrice:145, total:145, currency:"USD", status:"cancelled", payStatus:"refunded", amountPaid:0, source:"website", notes:"", internalNotes:"Canceló por vuelo retrasado", confirmSent:true, reminderSent:false, createdAt:"2026-02-25" },
+  { id:"b9", ref:"TF-2026-0046", customerId:"c1", serviceId:"s2", staffId:"u2", start:"2026-03-09T07:00:00", end:"2026-03-09T12:00:00", guests:2, basePrice:360, total:360, currency:"USD", status:"confirmed", payStatus:"paid", amountPaid:360, source:"website", notes:"", internalNotes:"", confirmSent:true, reminderSent:false, createdAt:"2026-03-06" },
+  { id:"b10", ref:"TF-2026-0047", customerId:"c2", serviceId:"s1", staffId:"u1", start:"2026-03-10T14:00:00", end:"2026-03-12T12:00:00", guests:1, basePrice:640, total:640, currency:"USD", status:"pending", payStatus:"pending", amountPaid:0, source:"email", notes:"Viaje de negocios", internalNotes:"", confirmSent:false, reminderSent:false, createdAt:"2026-03-07" },
+  { id:"b11", ref:"TF-2026-0048", customerId:"c6", serviceId:"s4", staffId:"u2", start:"2026-03-12T20:00:00", end:"2026-03-12T22:30:00", guests:4, basePrice:580, total:580, currency:"USD", status:"confirmed", payStatus:"partial", amountPaid:290, source:"referral", notes:"Cena corporativa", internalNotes:"Cliente VIP — atención especial", confirmSent:true, reminderSent:false, createdAt:"2026-03-07" },
+];
+
+const REVENUE_DATA = [
+  {date:"Feb 08",rev:1240,bk:8},{date:"Feb 11",rev:980,bk:6},{date:"Feb 14",rev:2200,bk:15},
+  {date:"Feb 17",rev:1750,bk:12},{date:"Feb 20",rev:3100,bk:20},{date:"Feb 23",rev:2450,bk:17},
+  {date:"Feb 26",rev:3400,bk:23},{date:"Mar 01",rev:2950,bk:21},{date:"Mar 04",rev:4100,bk:28},
+  {date:"Mar 08",rev:3760,bk:25},
+];
+
+const USERS = [
+  { id:"u1", name:"Andrés Solís", role:"admin", email:"andres@ticoflow.cr", avatar:"AS" },
+  { id:"u2", name:"Paola Mora", role:"staff", email:"paola@ticoflow.cr", avatar:"PM" },
+];
+
+const TENANT = { name:"Eco Lodge Monteverde", slug:"ecolodge", type:"hotel", plan:"growth", currency:"USD" };
+
+/* helpers */
+const fmt = {
+  money: v => `$${(v||0).toLocaleString("en-US",{minimumFractionDigits:0,maximumFractionDigits:0})}`,
+  date: d => { if(!d)return"—"; return new Date(d).toLocaleDateString("es-CR",{day:"numeric",month:"short",year:"numeric"}); },
+  time: d => { if(!d)return"—"; return new Date(d).toLocaleTimeString("es-CR",{hour:"2-digit",minute:"2-digit"}); },
+  datetime: d => { if(!d)return"—"; return new Date(d).toLocaleString("es-CR",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}); },
+  initials: (f,l) => `${f?.[0]||""}${l?.[0]||""}`.toUpperCase(),
+  rel: d => { const diff=Math.floor((new Date()-new Date(d))/86400000); if(diff===0)return"hoy"; if(diff===1)return"ayer"; if(diff<7)return`hace ${diff} días`; return fmt.date(d); },
+};
+
+const AVATAR_COLORS = ["#1DAF8E","#5CC831","#1565C0","#00ACC1","#43A047","#0288D1","#2E7D32","#0277BD"];
+const avatarColor = s => AVATAR_COLORS[(s?.charCodeAt(0)||0)%AVATAR_COLORS.length];
+
+const STATUS_LABELS = {pending:"Pendiente",confirmed:"Confirmada",checked_in:"En curso",completed:"Completada",cancelled:"Cancelada",no_show:"No llegó"};
+const STATUS_TRANSITIONS = {pending:["confirmed","cancelled"],confirmed:["checked_in","cancelled","no_show"],checked_in:["completed"],completed:[],cancelled:[],no_show:[]};
+const PAY_LABELS = {pending:"Sin pago",partial:"Parcial",paid:"Pagado",refunded:"Reembolsado",cancelled:"Cancelado"};
+
+/* ═══════════════════════════════════════════════════════════════
+   MICRO COMPONENTS
+═══════════════════════════════════════════════════════════════ */
+function Avatar({first,last,size=36}) {
+  const bg = avatarColor(first);
+  return (
+    <div style={{width:size,height:size,borderRadius:"50%",background:bg,display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontSize:size*0.35,fontWeight:900,flexShrink:0,letterSpacing:"-0.5px",boxShadow:`0 2px 10px ${bg}44`}}>
+      {fmt.initials(first,last)}
+    </div>
+  );
+}
+
+function StatusBadge({status}) {
+  return <span className={`status-badge status-${status}`}><span style={{fontSize:7}}>●</span>{STATUS_LABELS[status]||status}</span>;
+}
+
+function TagBadge({tag}) {
+  const cls={vip:"tag-vip",frequent:"tag-frequent",new:"tag-new",corporate:"tag-corporate",blacklist:"tag-blacklist"};
+  const labels={vip:"✦ VIP",frequent:"Frecuente",new:"Nuevo",corporate:"Corporativo",blacklist:"Bloqueado"};
+  return <span className={`tag ${cls[tag]||"tag-new"}`}>{labels[tag]||tag}</span>;
+}
+
+function KPICard({title,value,sub,trend,up,colorA,colorB,icon}) {
+  const grad = `linear-gradient(135deg,${colorA},${colorB})`;
+  return (
+    <div className="card" style={{padding:"22px 24px",position:"relative",overflow:"hidden",transition:"all 0.2s"}}>
+      <div style={{position:"absolute",top:-20,right:-20,width:90,height:90,borderRadius:"50%",background:grad,opacity:0.1,filter:"blur(20px)",pointerEvents:"none"}} />
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+        <div style={{flex:1}}>
+          <p style={{color:"#546E7A",fontSize:11,fontWeight:700,letterSpacing:"0.08em",textTransform:"uppercase",margin:"0 0 10px"}}>{title}</p>
+          <p style={{color:"#E8F5E9",fontSize:28,fontWeight:900,margin:"0 0 6px",fontFamily:"'Sora',sans-serif",letterSpacing:"-1px",lineHeight:1}}>{value}</p>
+          <p style={{fontSize:12,margin:0,display:"flex",alignItems:"center",gap:6}}>
+            <span style={{color:up?"#7BE050":"#f87171",fontWeight:800}}>{up?"↑":"↓"} {trend}</span>
+            <span style={{color:"#37474F"}}>{sub}</span>
+          </p>
+        </div>
+        <div style={{width:44,height:44,borderRadius:14,background:grad,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0,boxShadow:`0 4px 14px ${colorA}44`}}>{icon}</div>
+      </div>
+    </div>
+  );
+}
+
+function Toast({toasts,remove}) {
+  return (
+    <div style={{position:"fixed",bottom:24,right:24,zIndex:9999,display:"flex",flexDirection:"column",gap:10}}>
+      {toasts.map(t=>(
+        <div key={t.id} style={{
+          background: t.type==="error"?"#1A0A0A":t.type==="warning"?"#1A1400":"#071A10",
+          border:`1px solid ${t.type==="error"?"rgba(239,68,68,0.3)":t.type==="warning"?"rgba(255,193,7,0.3)":"rgba(92,200,49,0.3)"}`,
+          borderRadius:14,padding:"13px 16px",minWidth:290,maxWidth:360,
+          display:"flex",alignItems:"center",gap:10,animation:"toastIn 0.3s ease",
+          boxShadow:"0 10px 40px rgba(0,0,0,0.5)"
+        }}>
+          <span style={{fontSize:16,flexShrink:0}}>{t.type==="error"?"✕":t.type==="warning"?"⚠":"✓"}</span>
+          <span style={{fontSize:13,color:"#E8F5E9",flex:1}}>{t.message}</span>
+          <button onClick={()=>remove(t.id)} style={{background:"none",border:"none",color:"#546E7A",fontSize:18,padding:2}}>×</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Modal({title,onClose,children,width=560}) {
+  return (
+    <div className="modal-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal-box" style={{maxWidth:width}}>
+        <div style={{padding:"24px 28px",borderBottom:"1px solid rgba(29,175,142,0.1)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <h2 style={{fontSize:19,fontWeight:900,color:"#E8F5E9",fontFamily:"'Sora',sans-serif",margin:0}}>{title}</h2>
+          <button onClick={onClose} style={{background:"rgba(29,175,142,0.08)",border:"1px solid rgba(29,175,142,0.15)",color:"#90A4AE",width:30,height:30,borderRadius:9,fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
+        </div>
+        <div style={{padding:"24px 28px"}}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function FieldGroup({label,children,required}) {
+  return (
+    <div style={{marginBottom:16}}>
+      <label style={{display:"block",fontSize:12,fontWeight:700,color:"#78909C",marginBottom:6,letterSpacing:"0.04em"}}>{label}{required&&<span style={{color:"#5CC831",marginLeft:3}}>*</span>}</label>
+      {children}
+    </div>
+  );
+}
+
+function SectionHeader({title,sub,action}) {
+  return (
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:26}}>
+      <div>
+        <h2 style={{margin:0,fontSize:23,fontWeight:900,color:"#E8F5E9",fontFamily:"'Sora',sans-serif",letterSpacing:"-0.5px"}}>{title}</h2>
+        {sub&&<p style={{margin:"4px 0 0",fontSize:13,color:"#546E7A"}}>{sub}</p>}
+      </div>
+      {action}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LOGIN
+═══════════════════════════════════════════════════════════════ */
+function LoginScreen({onLogin}) {
+  const [tab,setTab]=useState("login");
+  const [form,setForm]=useState({email:"admin@ticoflow.cr",password:"demo123",businessName:"",type:"hotel",firstName:"",lastName:""});
+  const [loading,setLoading]=useState(false);
+  const [err,setErr]=useState("");
+  const f=k=>e=>setForm(p=>({...p,[k]:e.target.value}));
+
+  const submit=()=>{
+    setErr("");
+    setLoading(true);
+    setTimeout(()=>{
+      setLoading(false);
+      if(tab==="login"&&form.email&&form.password) onLogin(USERS[0]);
+      else if(tab==="register"&&form.businessName&&form.firstName&&form.email) onLogin(USERS[0]);
+      else setErr("Completa todos los campos requeridos.");
+    },900);
+  };
+
+  return (
+    <div style={{minHeight:"100vh",display:"flex",background:"#060D16",overflow:"hidden"}}>
+      {/* Ambient blobs */}
+      <div style={{position:"fixed",top:"10%",left:"5%",width:500,height:500,borderRadius:"50%",background:"radial-gradient(circle,rgba(92,200,49,0.06),transparent 70%)",pointerEvents:"none"}}/>
+      <div style={{position:"fixed",bottom:"10%",right:"5%",width:400,height:400,borderRadius:"50%",background:"radial-gradient(circle,rgba(21,101,192,0.07),transparent 70%)",pointerEvents:"none"}}/>
+      <div style={{position:"fixed",top:"40%",left:"40%",width:300,height:300,borderRadius:"50%",background:"radial-gradient(circle,rgba(29,175,142,0.05),transparent 70%)",pointerEvents:"none"}}/>
+
+      {/* Left — Form */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"center",padding:"60px 80px",position:"relative",zIndex:1}}>
+        <div style={{maxWidth:420,width:"100%"}}>
+          {/* Logo */}
+          <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:52}}>
+            <div style={{width:52,height:52,background:"linear-gradient(135deg,rgba(92,200,49,0.15),rgba(29,175,142,0.15))",borderRadius:16,display:"flex",alignItems:"center",justifyContent:"center",border:"1px solid rgba(29,175,142,0.25)"}}>
+              <HummingbirdIcon size={36} />
+            </div>
+            <div>
+              <div style={{fontSize:26,fontWeight:900,fontFamily:"'Sora',sans-serif",letterSpacing:"-0.5px"}}>
+                <span className="grad-text">Tico</span><span style={{color:"#1565C0"}}>Flow</span>
+              </div>
+              <div style={{fontSize:10,color:"#1DAF8E",fontWeight:700,letterSpacing:"0.14em",textTransform:"uppercase"}}>Gestión de Turismo</div>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div style={{display:"flex",background:"rgba(29,175,142,0.06)",borderRadius:14,padding:4,marginBottom:30,border:"1px solid rgba(29,175,142,0.1)"}}>
+            {["login","register"].map(t=>(
+              <button key={t} onClick={()=>{setTab(t);setErr("");}} style={{flex:1,padding:"9px 0",borderRadius:11,border:"none",fontSize:13,fontWeight:800,background:tab===t?"rgba(29,175,142,0.18)":"transparent",color:tab===t?"#5CC831":"#546E7A",transition:"all 0.15s"}}>
+                {t==="login"?"Iniciar sesión":"Registrar negocio"}
+              </button>
+            ))}
+          </div>
+
+          <div className="fade-in" key={tab}>
+            {tab==="register"&&<>
+              <FieldGroup label="Nombre del negocio" required><input className="input-field" placeholder="Eco Lodge Monteverde" value={form.businessName} onChange={f("businessName")}/></FieldGroup>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                <FieldGroup label="Tu nombre" required><input className="input-field" placeholder="Andrés" value={form.firstName} onChange={f("firstName")}/></FieldGroup>
+                <FieldGroup label="Apellido"><input className="input-field" placeholder="Solís" value={form.lastName} onChange={f("lastName")}/></FieldGroup>
+              </div>
+              <FieldGroup label="Tipo de negocio" required>
+                <select className="select-field" value={form.type} onChange={f("type")}>
+                  <option value="hotel">🏨 Hotel / Lodge / Hospedaje</option>
+                  <option value="tour">🌋 Tours / Aventura / Excursiones</option>
+                  <option value="rent_a_car">🚙 Rent a Car</option>
+                  <option value="restaurant">🍃 Restaurante / Café</option>
+                  <option value="gym">🌿 Wellness / Spa / Gimnasio</option>
+                  <option value="other">📦 Otro</option>
+                </select>
+              </FieldGroup>
+            </>}
+            <FieldGroup label="Email" required><input className="input-field" type="email" placeholder="tu@negocio.cr" value={form.email} onChange={f("email")}/></FieldGroup>
+            <FieldGroup label="Contraseña" required><input className="input-field" type="password" placeholder="••••••••" value={form.password} onChange={f("password")} onKeyDown={e=>e.key==="Enter"&&submit()}/></FieldGroup>
+
+            {err&&<p style={{color:"#f87171",fontSize:12,margin:"-8px 0 16px",padding:"9px 13px",background:"rgba(239,68,68,0.08)",borderRadius:9}}>⚠ {err}</p>}
+
+            <button className="btn-primary" style={{width:"100%",padding:"13px",fontSize:14,borderRadius:14}} onClick={submit} disabled={loading}>
+              {loading?<span style={{animation:"spin 1s linear infinite",display:"inline-block"}}>◌</span>:tab==="login"?"Entrar a TicoFlow →":"Crear cuenta gratis →"}
+            </button>
+
+            {tab==="login"&&(
+              <div style={{marginTop:16,padding:"12px 14px",background:"rgba(29,175,142,0.07)",border:"1px solid rgba(29,175,142,0.15)",borderRadius:11,fontSize:12,color:"#78909C"}}>
+                <span style={{color:"#5CC831",fontWeight:800}}>Demo:</span> admin@ticoflow.cr / demo123
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Right — Feature panel */}
+      <div style={{width:420,background:"rgba(11,20,32,0.8)",borderLeft:"1px solid rgba(29,175,142,0.1)",display:"flex",flexDirection:"column",justifyContent:"center",padding:"60px 48px",position:"relative",zIndex:1}}>
+        <div className="float" style={{marginBottom:32,display:"flex",justifyContent:"center"}}>
+          <HummingbirdIcon size={80} />
+        </div>
+        <p style={{fontSize:11,color:"#1DAF8E",fontWeight:800,letterSpacing:"0.14em",textTransform:"uppercase",marginBottom:12}}>Plataforma todo en uno</p>
+        <h3 style={{fontSize:22,fontWeight:900,color:"#E8F5E9",fontFamily:"'Sora',sans-serif",lineHeight:1.35,marginBottom:30}}>Gestiona tu negocio de turismo sin esfuerzo</h3>
+        {[
+          {icon:"📅",title:"Reservas en tiempo real",desc:"Calendario visual, estados inteligentes y disponibilidad automática"},
+          {icon:"👥",title:"CRM de clientes",desc:"Historial, etiquetas VIP, notas y preferencias personalizadas"},
+          {icon:"🤖",title:"Automatizaciones",desc:"WhatsApp y email automáticos: confirmaciones, recordatorios, reviews"},
+          {icon:"📊",title:"Analytics en vivo",desc:"Ingresos, ocupación y métricas clave actualizadas al instante"},
+          {icon:"💳",title:"Pagos con Stripe",desc:"Cobros online, reembolsos y facturación sin complicaciones"},
+        ].map(f=>(
+          <div key={f.title} style={{display:"flex",gap:13,marginBottom:18}}>
+            <div style={{width:36,height:36,background:"rgba(29,175,142,0.1)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:17,flexShrink:0}}>{f.icon}</div>
+            <div>
+              <p style={{margin:"0 0 3px",fontSize:13,fontWeight:800,color:"#CFD8DC"}}>{f.title}</p>
+              <p style={{margin:0,fontSize:12,color:"#37474F",lineHeight:1.5}}>{f.desc}</p>
+            </div>
+          </div>
+        ))}
+        <div style={{marginTop:10,padding:"13px 16px",background:"rgba(92,200,49,0.07)",border:"1px solid rgba(92,200,49,0.15)",borderRadius:13,display:"flex",gap:11,alignItems:"center"}}>
+          <span style={{fontSize:22}}>🇨🇷</span>
+          <div>
+            <p style={{margin:"0 0 2px",fontSize:12,fontWeight:800,color:"#7BE050"}}>Hecho para el turismo costarricense</p>
+            <p style={{margin:0,fontSize:11,color:"#37474F"}}>14 días gratis · Sin tarjeta de crédito</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MAIN APP
+═══════════════════════════════════════════════════════════════ */
+export default function TicoFlowMVP() {
+  const [user,setUser]=useState(null);
+  const [page,setPage]=useState("dashboard");
+  const [bookings,setBookings]=useState(BOOKINGS_SEED);
+  const [customers,setCustomers]=useState(CUSTOMERS_SEED);
+  const [services,setServices]=useState(SERVICES);
+  const [toasts,setToasts]=useState([]);
+  const [sidebarCollapsed,setSidebarCollapsed]=useState(false);
+  const [showNewBooking,setShowNewBooking]=useState(false);
+  const [showNewCustomer,setShowNewCustomer]=useState(false);
+  const [showBookingDetail,setShowBookingDetail]=useState(null);
+  const [showCustomerPanel,setShowCustomerPanel]=useState(null);
+  const [showConfirm,setShowConfirm]=useState(null);
+
+  const toast=useCallback((msg,type="success")=>{const id=genId();setToasts(p=>[...p,{id,message:msg,type}]);setTimeout(()=>setToasts(p=>p.filter(t=>t.id!==id)),4000);},[]);
+  const removeToast=useCallback(id=>setToasts(p=>p.filter(t=>t.id!==id)),[]);
+
+  const changeBookingStatus=useCallback((bookingId,ns)=>{
+    setBookings(prev=>prev.map(b=>b.id===bookingId?{...b,status:ns,...(ns==="confirmed"?{confirmSent:true}:{}),...(ns==="cancelled"?{payStatus:b.payStatus==="paid"?"refunded":"cancelled"}:{})}:b));
+    const labels={confirmed:"✓ Reserva confirmada",cancelled:"Reserva cancelada",checked_in:"✓ Check-in registrado",completed:"✓ Servicio completado",no_show:"Marcada como no llegó"};
+    toast(labels[ns]||`Estado: ${ns}`);
+    setShowConfirm(null);
+    setShowBookingDetail(null);
+  },[toast]);
+
+  if(!user) return <><style>{GLOBAL_CSS}</style><LoginScreen onLogin={u=>{setUser(u);}}/></>;
+
+  const getCustomer=id=>customers.find(c=>c.id===id);
+  const getService=id=>services.find(s=>s.id===id);
+
+  return (
+    <>
+      <style>{GLOBAL_CSS}</style>
+      <div style={{display:"flex",height:"100vh",overflow:"hidden",background:"#060D16"}}>
+        <Sidebar page={page} setPage={setPage} user={user} tenant={TENANT} collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} onLogout={()=>setUser(null)}/>
+        <div style={{flex:1,overflow:"auto",display:"flex",flexDirection:"column"}}>
+          {page==="dashboard"&&<DashboardView bookings={bookings} customers={customers} setPage={setPage} setShowNewBooking={setShowNewBooking} getCustomer={getCustomer} getService={getService} toast={toast}/>}
+          {page==="bookings"&&<BookingsView bookings={bookings} customers={customers} services={services} setShowNewBooking={setShowNewBooking} showDetail={setShowBookingDetail} changeStatus={changeBookingStatus} getCustomer={getCustomer} getService={getService} toast={toast} setShowConfirm={setShowConfirm}/>}
+          {page==="customers"&&<CustomersView customers={customers} bookings={bookings} setShowNewCustomer={setShowNewCustomer} showPanel={setShowCustomerPanel} toast={toast} setCustomers={setCustomers}/>}
+          {page==="services"&&<ServicesView services={services} setServices={setServices} toast={toast}/>}
+          {page==="analytics"&&<AnalyticsView bookings={bookings} customers={customers}/>}
+          {page==="settings"&&<SettingsView tenant={TENANT} user={user} toast={toast}/>}
+        </div>
+      </div>
+      {showNewBooking&&<NewBookingModal customers={customers} services={services} users={USERS} onClose={()=>setShowNewBooking(false)} onSave={b=>{const nb={...b,id:genId(),ref:`TF-2026-${String(bookings.length+49).padStart(4,"0")}`,createdAt:TODAY,confirmSent:false,reminderSent:false};setBookings(p=>[nb,...p]);toast("✓ Reserva creada en TicoFlow");setShowNewBooking(false);}}/>}
+      {showNewCustomer&&<NewCustomerModal onClose={()=>setShowNewCustomer(false)} onSave={c=>{const nc={...c,id:genId(),totalBookings:0,totalSpent:0,createdAt:TODAY,tags:["new"]};setCustomers(p=>[nc,...p]);toast("✓ Cliente registrado");setShowNewCustomer(false);}}/>}
+      {showBookingDetail&&<BookingDetailModal booking={bookings.find(b=>b.id===showBookingDetail)} getCustomer={getCustomer} getService={getService} onClose={()=>setShowBookingDetail(null)} changeStatus={changeBookingStatus} setShowConfirm={setShowConfirm} toast={toast}/>}
+      {showCustomerPanel&&<CustomerPanel customer={customers.find(c=>c.id===showCustomerPanel)} bookings={bookings.filter(b=>b.customerId===showCustomerPanel)} getService={getService} onClose={()=>setShowCustomerPanel(null)} onUpdate={c=>{setCustomers(p=>p.map(x=>x.id===c.id?c:x));toast("✓ Perfil actualizado");}} toast={toast}/>}
+      {showConfirm&&<ConfirmModal {...showConfirm} onCancel={()=>setShowConfirm(null)}/>}
+      <Toast toasts={toasts} remove={removeToast}/>
+    </>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SIDEBAR
+═══════════════════════════════════════════════════════════════ */
+const NAV=[
+  {id:"dashboard",label:"Dashboard",icon:"⬡"},
+  {id:"bookings",label:"Reservas",icon:"◉",badge:"5"},
+  {id:"customers",label:"Clientes",icon:"◎"},
+  {id:"services",label:"Servicios",icon:"◈"},
+  {id:"analytics",label:"Analytics",icon:"◫"},
+  {id:"settings",label:"Configuración",icon:"◌"},
+];
+
+function Sidebar({page,setPage,user,tenant,collapsed,setCollapsed,onLogout}) {
+  return (
+    <aside style={{width:collapsed?68:238,flexShrink:0,background:"#080F1C",borderRight:"1px solid rgba(29,175,142,0.09)",display:"flex",flexDirection:"column",transition:"width 0.3s cubic-bezier(0.4,0,0.2,1)",overflow:"hidden",position:"relative"}}>
+      {/* Logo */}
+      <div style={{padding:collapsed?"20px 16px":"20px 20px",borderBottom:"1px solid rgba(29,175,142,0.07)",display:"flex",alignItems:"center",gap:12,overflow:"hidden",flexShrink:0}}>
+        <div style={{width:38,height:38,background:"rgba(29,175,142,0.1)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,border:"1px solid rgba(29,175,142,0.2)"}}>
+          <HummingbirdIcon size={26}/>
+        </div>
+        {!collapsed&&<div style={{overflow:"hidden"}}>
+          <div style={{fontSize:18,fontWeight:900,fontFamily:"'Sora',sans-serif",whiteSpace:"nowrap",letterSpacing:"-0.3px"}}>
+            <span className="grad-text">Tico</span><span style={{color:"#1565C0"}}>Flow</span>
+          </div>
+          <div style={{fontSize:9,color:"#1DAF8E",fontWeight:700,letterSpacing:"0.12em",whiteSpace:"nowrap"}}>TURISMO DIGITAL</div>
+        </div>}
+      </div>
+
+      {/* Tenant */}
+      {!collapsed&&(
+        <div style={{padding:"10px 12px",borderBottom:"1px solid rgba(29,175,142,0.05)",flexShrink:0}}>
+          <div style={{background:"rgba(29,175,142,0.07)",border:"1px solid rgba(29,175,142,0.12)",borderRadius:11,padding:"9px 12px",display:"flex",alignItems:"center",gap:9}}>
+            <div style={{width:28,height:28,background:"linear-gradient(135deg,#5CC831,#1DAF8E)",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0}}>🌿</div>
+            <div style={{minWidth:0}}>
+              <div style={{fontSize:12,fontWeight:800,color:"#CFD8DC",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{tenant.name}</div>
+              <div style={{fontSize:10,color:"#37474F"}}>Plan Growth · ✦ Activo</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Nav */}
+      <nav style={{padding:"12px 10px",flex:1,overflow:"hidden"}}>
+        {NAV.map(n=>(
+          <div key={n.id} onClick={()=>setPage(n.id)} className={`nav-item ${page===n.id?"active":""}`} style={{display:"flex",alignItems:"center",gap:10,padding:collapsed?"11px 0":"10px 12px",marginBottom:3,cursor:"pointer",justifyContent:collapsed?"center":"flex-start",position:"relative"}} title={collapsed?n.label:""}>
+            {page===n.id&&!collapsed&&<div style={{position:"absolute",left:0,top:"25%",bottom:"25%",width:3,background:"linear-gradient(180deg,#5CC831,#1DAF8E)",borderRadius:"0 3px 3px 0"}}/>}
+            <span style={{fontSize:17,flexShrink:0}}>{n.icon}</span>
+            {!collapsed&&<>
+              <span style={{fontSize:13,fontWeight:page===n.id?800:500,flex:1,whiteSpace:"nowrap"}}>{n.label}</span>
+              {n.badge&&<span style={{background:"rgba(92,200,49,0.15)",color:"#7BE050",fontSize:10,fontWeight:900,padding:"1px 7px",borderRadius:20}}>{n.badge}</span>}
+            </>}
+          </div>
+        ))}
+      </nav>
+
+      {/* User */}
+      <div style={{padding:collapsed?"14px 10px":"14px 16px",borderTop:"1px solid rgba(29,175,142,0.07)",display:"flex",alignItems:"center",gap:10,overflow:"hidden",flexShrink:0,justifyContent:collapsed?"center":"flex-start"}}>
+        <Avatar first={user.name.split(" ")[0]} last={user.name.split(" ")[1]} size={32}/>
+        {!collapsed&&<>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:12,fontWeight:800,color:"#CFD8DC",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{user.name}</div>
+            <div style={{fontSize:10,color:"#37474F",textTransform:"capitalize"}}>{user.role}</div>
+          </div>
+          <button onClick={onLogout} title="Cerrar sesión" style={{background:"none",border:"none",color:"#37474F",fontSize:16,padding:4}}>⇥</button>
+        </>}
+      </div>
+
+      <button onClick={()=>setCollapsed(!collapsed)} style={{position:"absolute",top:26,right:-11,width:22,height:22,background:"#131E2E",border:"1px solid rgba(29,175,142,0.25)",borderRadius:"50%",color:"#1DAF8E",fontSize:10,display:"flex",alignItems:"center",justifyContent:"center",zIndex:10}}>
+        {collapsed?"›":"‹"}
+      </button>
+    </aside>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DASHBOARD
+═══════════════════════════════════════════════════════════════ */
+function DashboardView({bookings,customers,setPage,setShowNewBooking,getCustomer,getService,toast}) {
+  const todayBk=bookings.filter(b=>b.start.startsWith(TODAY));
+  const revenueToday=todayBk.filter(b=>b.payStatus==="paid").reduce((s,b)=>s+b.total,0);
+  const pending=bookings.filter(b=>b.status==="pending").length;
+  const newMonth=customers.filter(c=>c.createdAt.startsWith("2026-03")).length;
+  const revenueMonth=bookings.filter(b=>b.payStatus==="paid"&&b.start.startsWith("2026-03")).reduce((s,b)=>s+b.total,0);
+
+  const statusCounts=[
+    {name:"Confirmadas",value:bookings.filter(b=>b.status==="confirmed").length,color:"#7BE050"},
+    {name:"Pendientes",value:bookings.filter(b=>b.status==="pending").length,color:"#FFD54F"},
+    {name:"Completadas",value:bookings.filter(b=>b.status==="completed").length,color:"#64B5F6"},
+    {name:"Canceladas",value:bookings.filter(b=>b.status==="cancelled").length,color:"#f87171"},
+  ];
+
+  const topCustomers=[...customers].sort((a,b)=>b.totalSpent-a.totalSpent).slice(0,5);
+  const [time,setTime]=useState(new Date());
+  useEffect(()=>{const t=setInterval(()=>setTime(new Date()),1000);return()=>clearInterval(t);},[]);
+
+  return (
+    <div style={{padding:"28px 32px",flex:1,overflow:"auto"}}>
+      {/* Header */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:28}}>
+        <div style={{display:"flex",alignItems:"center",gap:14}}>
+          <HummingbirdIcon size={40}/>
+          <div>
+            <h1 style={{margin:"0 0 3px",fontSize:23,fontWeight:900,color:"#E8F5E9",fontFamily:"'Sora',sans-serif",letterSpacing:"-0.5px"}}>Bienvenido, {user?.name?.split(" ")[0]||"Andrés"} 👋</h1>
+            <p style={{margin:0,fontSize:13,color:"#546E7A",textTransform:"capitalize"}}>{time.toLocaleDateString("es-CR",{weekday:"long",day:"numeric",month:"long",year:"numeric"})} · {time.toLocaleTimeString("es-CR",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}</p>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:10}}>
+          <button className="btn-ghost" onClick={()=>setPage("bookings")}>Ver reservas</button>
+          <button className="btn-primary" onClick={()=>setShowNewBooking(true)}>+ Nueva Reserva</button>
+        </div>
+      </div>
+
+      {/* KPIs */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,marginBottom:24}} className="fade-in">
+        <KPICard title="Reservas hoy" value={todayBk.length} sub="vs ayer" trend="3" up colorA="#5CC831" colorB="#1DAF8E" icon="📅"/>
+        <KPICard title="Ingresos hoy" value={fmt.money(revenueToday)} sub="pagado hoy" trend="12%" up colorA="#1DAF8E" colorB="#1565C0" icon="💰"/>
+        <KPICard title="Pendientes" value={pending} sub="sin confirmar" trend={pending>3?"Atención":"Bien"} up={pending<=3} colorA="#FFD54F" colorB="#F9A825" icon="⚠️"/>
+        <KPICard title="Clientes nuevos" value={newMonth} sub="este mes" trend="↑ +2" up colorA="#5CC831" colorB="#43A047" icon="🌱"/>
+      </div>
+
+      {/* Charts row */}
+      <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:20,marginBottom:20}}>
+        <div className="card" style={{padding:24}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+            <div>
+              <h3 style={{margin:"0 0 3px",fontSize:15,fontWeight:800,color:"#CFD8DC"}}>Ingresos del mes</h3>
+              <p style={{margin:0,fontSize:12,color:"#546E7A"}}>Total: <span style={{fontWeight:800}} className="grad-text">{fmt.money(revenueMonth)}</span></p>
+            </div>
+            <div style={{fontSize:11,color:"#7BE050",background:"rgba(92,200,49,0.1)",padding:"4px 11px",borderRadius:20,fontWeight:800,border:"1px solid rgba(92,200,49,0.2)"}}>↑ 18% vs mes anterior</div>
+          </div>
+          <ResponsiveContainer width="100%" height={190}>
+            <AreaChart data={REVENUE_DATA} margin={{left:-10}}>
+              <defs>
+                <linearGradient id="tfg1" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#5CC831" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#5CC831" stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="tfg2" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#1565C0" stopOpacity={0.25}/>
+                  <stop offset="95%" stopColor="#1565C0" stopOpacity={0}/>
+                </linearGradient>
+                <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#5CC831"/><stop offset="50%" stopColor="#1DAF8E"/><stop offset="100%" stopColor="#1565C0"/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)"/>
+              <XAxis dataKey="date" tick={{fill:"#37474F",fontSize:10}} axisLine={false} tickLine={false}/>
+              <YAxis tick={{fill:"#37474F",fontSize:10}} axisLine={false} tickLine={false} tickFormatter={v=>`$${v}`}/>
+              <Tooltip contentStyle={{background:"#0D1B2A",border:"1px solid rgba(29,175,142,0.25)",borderRadius:11,fontSize:12}} labelStyle={{color:"#78909C"}} formatter={(v,n)=>[n==="rev"?fmt.money(v):v,n==="rev"?"Ingresos":"Reservas"]}/>
+              <Area type="monotone" dataKey="rev" stroke="#1DAF8E" strokeWidth={2.5} fill="url(#tfg1)"/>
+              <Area type="monotone" dataKey="bk" stroke="#1565C0" strokeWidth={2} fill="url(#tfg2)"/>
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="card" style={{padding:24}}>
+          <h3 style={{margin:"0 0 16px",fontSize:15,fontWeight:800,color:"#CFD8DC"}}>Estado de Reservas</h3>
+          <ResponsiveContainer width="100%" height={150}>
+            <PieChart>
+              <Pie data={statusCounts} cx="50%" cy="50%" innerRadius={42} outerRadius={65} dataKey="value" paddingAngle={3}>
+                {statusCounts.map((e,i)=><Cell key={i} fill={e.color}/>)}
+              </Pie>
+              <Tooltip contentStyle={{background:"#0D1B2A",border:"1px solid rgba(29,175,142,0.25)",borderRadius:10,fontSize:12}}/>
+            </PieChart>
+          </ResponsiveContainer>
+          <div style={{display:"flex",flexDirection:"column",gap:9,marginTop:4}}>
+            {statusCounts.map(s=>(
+              <div key={s.name} style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <div style={{width:8,height:8,borderRadius:"50%",background:s.color}}/>
+                  <span style={{fontSize:12,color:"#78909C"}}>{s.name}</span>
+                </div>
+                <span style={{fontSize:13,fontWeight:800,color:"#CFD8DC"}}>{s.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom */}
+      <div style={{display:"grid",gridTemplateColumns:"1.3fr 1fr",gap:20}}>
+        <div className="card" style={{padding:24}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+            <h3 style={{margin:0,fontSize:15,fontWeight:800,color:"#CFD8DC"}}>Reservas de Hoy</h3>
+            <button className="btn-ghost" style={{padding:"5px 12px",fontSize:11}} onClick={()=>setPage("bookings")}>Ver todas →</button>
+          </div>
+          {todayBk.length===0?(
+            <div style={{textAlign:"center",padding:"32px 0",color:"#37474F"}}><div style={{fontSize:32,marginBottom:8}}>🌿</div><p>Sin reservas para hoy</p></div>
+          ):todayBk.map(b=>{
+            const c=getCustomer(b.customerId),s=getService(b.serviceId);
+            return (
+              <div key={b.id} className="table-row" style={{display:"flex",alignItems:"center",gap:12,padding:"11px 12px",borderRadius:11,marginBottom:6,border:"1px solid transparent",cursor:"pointer"}} onClick={()=>{}}>
+                <Avatar first={c?.firstName} last={c?.lastName} size={36}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:700,color:"#CFD8DC"}}>{c?.firstName} {c?.lastName}</div>
+                  <div style={{fontSize:11,color:"#546E7A"}}>{s?.icon} {s?.name}</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:11,color:"#546E7A",marginBottom:4}}>🕐 {fmt.time(b.start)}</div>
+                  <StatusBadge status={b.status}/>
+                </div>
+                <div style={{fontSize:13,fontWeight:800,color:"#4DD0B8",minWidth:58,textAlign:"right"}}>{fmt.money(b.total)}</div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="card" style={{padding:24}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+            <h3 style={{margin:0,fontSize:15,fontWeight:800,color:"#CFD8DC"}}>Top Clientes</h3>
+            <button className="btn-ghost" style={{padding:"5px 12px",fontSize:11}} onClick={()=>setPage("customers")}>Ver CRM →</button>
+          </div>
+          {topCustomers.map((c,i)=>(
+            <div key={c.id} style={{display:"flex",alignItems:"center",gap:11,marginBottom:14}}>
+              <span style={{width:20,fontSize:11,fontWeight:900,color:i===0?"#FFD54F":"#37474F",textAlign:"center"}}>#{i+1}</span>
+              <Avatar first={c.firstName} last={c.lastName} size={32}/>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:700,color:"#CFD8DC"}}>{c.firstName} {c.lastName}</div>
+                <div style={{fontSize:11,color:"#546E7A"}}>{c.totalBookings} reservas</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:13,fontWeight:800,color:"#4DD0B8"}}>{fmt.money(c.totalSpent)}</div>
+                <div style={{display:"flex",gap:4,justifyContent:"flex-end",marginTop:3}}>{c.tags.slice(0,1).map(t=><TagBadge key={t} tag={t}/>)}</div>
+              </div>
+            </div>
+          ))}
+          <div style={{marginTop:8,padding:"13px",background:"rgba(29,175,142,0.06)",borderRadius:11,border:"1px solid rgba(29,175,142,0.12)"}}>
+            <p style={{margin:"0 0 2px",fontSize:12,fontWeight:700,color:"#1DAF8E"}}>Ingreso mensual estimado</p>
+            <p style={{margin:0,fontSize:21,fontWeight:900,color:"#E8F5E9",fontFamily:"'Sora',sans-serif",letterSpacing:"-0.5px"}}>{fmt.money(revenueMonth)}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Minimal placeholder reference for user variable in Dashboard
+const user = null;
+
+/* ═══════════════════════════════════════════════════════════════
+   BOOKINGS VIEW
+═══════════════════════════════════════════════════════════════ */
+function BookingsView({bookings,customers,services,setShowNewBooking,showDetail,changeStatus,getCustomer,getService,toast,setShowConfirm}) {
+  const [view,setView]=useState("list");
+  const [filter,setFilter]=useState("all");
+  const [search,setSearch]=useState("");
+  const [calDate,setCalDate]=useState(new Date("2026-03-01"));
+  const [selectedDay,setSelectedDay]=useState(null);
+
+  const filtered=useMemo(()=>bookings.filter(b=>{
+    if(filter!=="all"&&b.status!==filter)return false;
+    if(search){const c=getCustomer(b.customerId);const q=search.toLowerCase();if(!(`${c?.firstName} ${c?.lastName} ${b.ref}`.toLowerCase().includes(q)))return false;}
+    return true;
+  }).sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)),[bookings,filter,search,getCustomer]);
+
+  const year=calDate.getFullYear(),month=calDate.getMonth();
+  const firstDay=new Date(year,month,1).getDay();
+  const daysInMonth=new Date(year,month+1,0).getDate();
+  const calBk={};
+  bookings.filter(b=>b.status!=="cancelled").forEach(b=>{const d=b.start.split("T")[0];if(!calBk[d])calBk[d]=[];calBk[d].push(b);});
+
+  const sColors={pending:"#FFD54F",confirmed:"#7BE050",checked_in:"#4DD0B8",completed:"#64B5F6"};
+
+  return (
+    <div style={{padding:"28px 32px",flex:1,overflow:"auto"}}>
+      <SectionHeader title="Reservas" sub={`${filtered.length} resultado${filtered.length!==1?"s":""}`}
+        action={<div style={{display:"flex",gap:10}}>
+          <div style={{display:"flex",background:"rgba(29,175,142,0.06)",borderRadius:11,padding:3,border:"1px solid rgba(29,175,142,0.1)"}}>
+            {[["list","☰ Lista"],["calendar","⊞ Calendario"]].map(([v,l])=>(
+              <button key={v} onClick={()=>setView(v)} style={{padding:"6px 14px",borderRadius:9,border:"none",fontSize:12,fontWeight:800,background:view===v?"rgba(29,175,142,0.18)":"transparent",color:view===v?"#5CC831":"#546E7A",transition:"all 0.15s"}}>{l}</button>
+            ))}
+          </div>
+          <button className="btn-primary" onClick={()=>setShowNewBooking(true)}>+ Nueva Reserva</button>
+        </div>}/>
+
+      <div style={{display:"flex",gap:10,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
+        <div style={{position:"relative",flex:1,maxWidth:320}}>
+          <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:"#37474F",fontSize:14}}>🔍</span>
+          <input className="input-field" style={{paddingLeft:36}} placeholder="Buscar por cliente o referencia..." value={search} onChange={e=>setSearch(e.target.value)}/>
+        </div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {["all","pending","confirmed","checked_in","completed","cancelled"].map(s=>(
+            <button key={s} onClick={()=>setFilter(s)} style={{padding:"6px 12px",borderRadius:20,border:`1px solid ${filter===s?"rgba(29,175,142,0.4)":"rgba(29,175,142,0.1)"}`,background:filter===s?"rgba(29,175,142,0.13)":"transparent",color:filter===s?"#5CC831":"#546E7A",fontSize:11,fontWeight:800,transition:"all 0.15s"}}>
+              {s==="all"?"Todas":STATUS_LABELS[s]} <span style={{opacity:0.6}}>{s==="all"?bookings.length:bookings.filter(b=>b.status===s).length}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {view==="list"?(
+        <div className="card" style={{overflow:"hidden"}}>
+          <table style={{width:"100%",borderCollapse:"collapse"}}>
+            <thead><tr style={{borderBottom:"1px solid rgba(29,175,142,0.08)"}}>
+              {["Referencia","Cliente","Servicio","Fecha","Estado","Pago","Total",""].map(h=>(
+                <th key={h} style={{padding:"12px 16px",fontSize:10,fontWeight:800,color:"#37474F",letterSpacing:"0.08em",textTransform:"uppercase",textAlign:"left"}}>{h}</th>
+              ))}
+            </tr></thead>
+            <tbody>
+              {filtered.map(b=>{
+                const c=getCustomer(b.customerId),s=getService(b.serviceId);
+                return (
+                  <tr key={b.id} className="table-row" style={{borderBottom:"1px solid rgba(29,175,142,0.05)",cursor:"pointer"}} onClick={()=>showDetail(b.id)}>
+                    <td style={{padding:"13px 16px"}}><span style={{fontSize:11,fontWeight:900,color:"#1DAF8E",fontFamily:"monospace"}}>{b.ref}</span></td>
+                    <td style={{padding:"13px 16px"}}><div style={{display:"flex",alignItems:"center",gap:9}}><Avatar first={c?.firstName} last={c?.lastName} size={28}/><span style={{fontSize:13,fontWeight:600,color:"#CFD8DC"}}>{c?.firstName} {c?.lastName}</span></div></td>
+                    <td style={{padding:"13px 16px",fontSize:12,color:"#78909C"}}>{s?.icon} {s?.name}</td>
+                    <td style={{padding:"13px 16px",fontSize:12,color:"#78909C",whiteSpace:"nowrap"}}>{fmt.datetime(b.start)}</td>
+                    <td style={{padding:"13px 16px"}}><StatusBadge status={b.status}/></td>
+                    <td style={{padding:"13px 16px"}}><span style={{fontSize:11,color:b.payStatus==="paid"?"#4DD0B8":b.payStatus==="partial"?"#FFD54F":"#f87171",fontWeight:700}}>{PAY_LABELS[b.payStatus]}</span></td>
+                    <td style={{padding:"13px 16px",fontSize:13,fontWeight:800,color:"#CFD8DC"}}>{fmt.money(b.total)}</td>
+                    <td style={{padding:"13px 16px"}}>
+                      <div style={{display:"flex",gap:4}} onClick={e=>e.stopPropagation()}>
+                        {STATUS_TRANSITIONS[b.status]?.slice(0,1).map(ns=>(
+                          <button key={ns} style={{background:"rgba(29,175,142,0.1)",border:"1px solid rgba(29,175,142,0.2)",color:"#5CC831",borderRadius:8,padding:"4px 10px",fontSize:10,fontWeight:800}}
+                            onClick={()=>{if(ns==="cancelled")setShowConfirm({title:"Cancelar reserva",message:`¿Cancelar ${b.ref}?`,confirmLabel:"Sí, cancelar",onConfirm:()=>changeStatus(b.id,ns),danger:true});else changeStatus(b.id,ns);}}>
+                            {ns==="confirmed"?"Confirmar":ns==="checked_in"?"Check-in":ns==="completed"?"Completar":ns==="cancelled"?"Cancelar":ns}
+                          </button>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filtered.length===0&&<tr><td colSpan={8} style={{padding:"48px",textAlign:"center",color:"#37474F"}}><div style={{fontSize:32,marginBottom:8}}>🌿</div><p>No se encontraron reservas</p></td></tr>}
+            </tbody>
+          </table>
+        </div>
+      ):(
+        <div className="card" style={{padding:24}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+            <h3 style={{margin:0,fontSize:16,fontWeight:800,color:"#CFD8DC"}}>{calDate.toLocaleDateString("es-CR",{month:"long",year:"numeric"}).replace(/^\w/,c=>c.toUpperCase())}</h3>
+            <div style={{display:"flex",gap:8}}>
+              <button className="btn-ghost" style={{padding:"6px 14px",fontSize:12}} onClick={()=>setCalDate(new Date(year,month-1,1))}>‹ Anterior</button>
+              <button className="btn-ghost" style={{padding:"6px 14px",fontSize:12}} onClick={()=>setCalDate(new Date(year,month+1,1))}>Siguiente ›</button>
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:8}}>
+            {["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"].map(d=>(
+              <div key={d} style={{textAlign:"center",fontSize:11,fontWeight:800,color:"#37474F",padding:"6px 0",letterSpacing:"0.04em"}}>{d}</div>
+            ))}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4}}>
+            {Array(firstDay).fill(null).map((_,i)=><div key={`e${i}`}/>)}
+            {Array(daysInMonth).fill(null).map((_,i)=>{
+              const day=i+1;
+              const ds=`${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+              const dBk=calBk[ds]||[];
+              const isToday=ds===TODAY,isSel=selectedDay===ds;
+              return (
+                <div key={day} className={`calendar-day ${isToday?"today":""} ${isSel?"selected":""}`} style={{minHeight:70,padding:"8px 6px",background:isToday?"rgba(92,200,49,0.07)":"rgba(255,255,255,0.015)",border:`1px solid ${isSel?"rgba(29,175,142,0.4)":isToday?"rgba(92,200,49,0.25)":"rgba(29,175,142,0.06)"}`}} onClick={()=>setSelectedDay(isSel?null:ds)}>
+                  <div style={{fontSize:12,fontWeight:isToday?900:400,color:isToday?"#5CC831":"#78909C",marginBottom:4}}>{day}</div>
+                  {dBk.slice(0,3).map(b=>{
+                    const c=getCustomer(b.customerId);
+                    return <div key={b.id} style={{fontSize:9,padding:"2px 5px",borderRadius:4,marginBottom:2,background:`${sColors[b.status]||"#546E7A"}18`,color:sColors[b.status]||"#546E7A",fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",cursor:"pointer"}} onClick={e=>{e.stopPropagation();showDetail(b.id);}}>{fmt.time(b.start)} {c?.firstName}</div>;
+                  })}
+                  {dBk.length>3&&<div style={{fontSize:9,color:"#37474F"}}>+{dBk.length-3} más</div>}
+                </div>
+              );
+            })}
+          </div>
+          {selectedDay&&calBk[selectedDay]&&(
+            <div style={{marginTop:20,borderTop:"1px solid rgba(29,175,142,0.08)",paddingTop:20}}>
+              <h4 style={{margin:"0 0 14px",fontSize:14,fontWeight:800,color:"#CFD8DC"}}>Reservas del {fmt.date(selectedDay)}</h4>
+              {calBk[selectedDay].map(b=>{
+                const c=getCustomer(b.customerId),s=getService(b.serviceId);
+                return (
+                  <div key={b.id} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 14px",background:"rgba(29,175,142,0.04)",borderRadius:11,marginBottom:8,cursor:"pointer",border:"1px solid rgba(29,175,142,0.08)"}} onClick={()=>showDetail(b.id)}>
+                    <Avatar first={c?.firstName} last={c?.lastName} size={32}/>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:13,fontWeight:700,color:"#CFD8DC"}}>{c?.firstName} {c?.lastName}</div>
+                      <div style={{fontSize:11,color:"#546E7A"}}>{s?.icon} {s?.name} · {fmt.time(b.start)}</div>
+                    </div>
+                    <StatusBadge status={b.status}/>
+                    <span style={{fontSize:13,fontWeight:800,color:"#4DD0B8"}}>{fmt.money(b.total)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CUSTOMERS VIEW
+═══════════════════════════════════════════════════════════════ */
+function CustomersView({customers,bookings,setShowNewCustomer,showPanel,toast,setCustomers}) {
+  const [search,setSearch]=useState("");
+  const [tagFilter,setTagFilter]=useState("all");
+  const [sort,setSort]=useState("totalSpent");
+
+  const filtered=useMemo(()=>customers.filter(c=>{
+    if(tagFilter!=="all"&&!c.tags.includes(tagFilter))return false;
+    if(search){const q=search.toLowerCase();return`${c.firstName} ${c.lastName} ${c.email}`.toLowerCase().includes(q);}
+    return true;
+  }).sort((a,b)=>(b[sort]||0)-(a[sort]||0)),[customers,tagFilter,search,sort]);
+
+  return (
+    <div style={{padding:"28px 32px",flex:1,overflow:"auto"}}>
+      <SectionHeader title="Clientes" sub={`${filtered.length} clientes registrados`} action={<button className="btn-primary" onClick={()=>setShowNewCustomer(true)}>+ Nuevo Cliente</button>}/>
+      <div style={{display:"flex",gap:10,marginBottom:20,alignItems:"center",flexWrap:"wrap"}}>
+        <div style={{position:"relative",flex:1,maxWidth:300}}>
+          <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:"#37474F"}}>🔍</span>
+          <input className="input-field" style={{paddingLeft:36}} placeholder="Buscar clientes..." value={search} onChange={e=>setSearch(e.target.value)}/>
+        </div>
+        <div style={{display:"flex",gap:6}}>
+          {["all","vip","frequent","new","corporate"].map(t=>(
+            <button key={t} onClick={()=>setTagFilter(t)} style={{padding:"6px 12px",borderRadius:20,border:`1px solid ${tagFilter===t?"rgba(29,175,142,0.4)":"rgba(29,175,142,0.1)"}`,background:tagFilter===t?"rgba(29,175,142,0.12)":"transparent",color:tagFilter===t?"#5CC831":"#546E7A",fontSize:11,fontWeight:800,transition:"all 0.15s"}}>
+              {t==="all"?"Todos":t==="vip"?"✦ VIP":t==="frequent"?"Frecuentes":t==="new"?"Nuevos":"Corporativos"}
+            </button>
+          ))}
+        </div>
+        <select className="select-field" style={{width:"auto",padding:"7px 12px",fontSize:12}} value={sort} onChange={e=>setSort(e.target.value)}>
+          <option value="totalSpent">Mayor gasto</option>
+          <option value="totalBookings">Más reservas</option>
+        </select>
+      </div>
+      <div className="card" style={{overflow:"hidden"}}>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr style={{borderBottom:"1px solid rgba(29,175,142,0.08)"}}>
+            {["Cliente","Contacto","Etiquetas","Reservas","Total gastado","Última visita",""].map(h=>(
+              <th key={h} style={{padding:"12px 16px",fontSize:10,fontWeight:800,color:"#37474F",letterSpacing:"0.08em",textTransform:"uppercase",textAlign:"left"}}>{h}</th>
+            ))}
+          </tr></thead>
+          <tbody>
+            {filtered.map(c=>(
+              <tr key={c.id} className="table-row" style={{borderBottom:"1px solid rgba(29,175,142,0.05)",cursor:"pointer"}} onClick={()=>showPanel(c.id)}>
+                <td style={{padding:"13px 16px"}}><div style={{display:"flex",alignItems:"center",gap:10}}><Avatar first={c.firstName} last={c.lastName} size={34}/><div><div style={{fontSize:13,fontWeight:700,color:"#CFD8DC"}}>{c.firstName} {c.lastName}</div><div style={{fontSize:11,color:"#546E7A"}}>{c.nationality}</div></div></div></td>
+                <td style={{padding:"13px 16px"}}><div style={{fontSize:12,color:"#78909C"}}>{c.email}</div><div style={{fontSize:11,color:"#546E7A"}}>{c.phone}</div></td>
+                <td style={{padding:"13px 16px"}}><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>{c.tags.map(t=><TagBadge key={t} tag={t}/>)}</div></td>
+                <td style={{padding:"13px 16px",fontSize:14,fontWeight:800,color:"#CFD8DC"}}>{c.totalBookings}</td>
+                <td style={{padding:"13px 16px",fontSize:14,fontWeight:800,color:"#4DD0B8"}}>{fmt.money(c.totalSpent)}</td>
+                <td style={{padding:"13px 16px",fontSize:12,color:"#546E7A"}}>{fmt.rel(c.lastVisit)}</td>
+                <td style={{padding:"13px 16px"}}><button style={{background:"rgba(29,175,142,0.08)",border:"1px solid rgba(29,175,142,0.18)",color:"#1DAF8E",borderRadius:8,padding:"4px 11px",fontSize:11,fontWeight:800}} onClick={e=>{e.stopPropagation();showPanel(c.id);}}>Ver perfil</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {filtered.length===0&&<div style={{textAlign:"center",padding:"48px",color:"#37474F"}}><div style={{fontSize:32,marginBottom:8}}>🌿</div><p>No se encontraron clientes</p></div>}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SERVICES VIEW
+═══════════════════════════════════════════════════════════════ */
+function ServicesView({services,setServices,toast}) {
+  const [showAdd,setShowAdd]=useState(false);
+  const [editService,setEditService]=useState(null);
+  const [form,setForm]=useState({name:"",category:"",price:"",duration:"",capacity:1,icon:"🌿",active:true});
+  const f=k=>e=>setForm(p=>({...p,[k]:e.target.value}));
+
+  const save=()=>{
+    if(!form.name||!form.price){toast("Completa nombre y precio","error");return;}
+    if(editService){setServices(prev=>prev.map(s=>s.id===editService.id?{...s,...form,price:parseFloat(form.price),capacity:parseInt(form.capacity)}:s));toast("✓ Servicio actualizado");}
+    else{setServices(prev=>[...prev,{...form,id:genId(),price:parseFloat(form.price),capacity:parseInt(form.capacity)}]);toast("✓ Servicio creado");}
+    setShowAdd(false);setEditService(null);setForm({name:"",category:"",price:"",duration:"",capacity:1,icon:"🌿",active:true});
+  };
+
+  return (
+    <div style={{padding:"28px 32px",flex:1,overflow:"auto"}}>
+      <SectionHeader title="Servicios" sub="Gestiona tu oferta turística" action={<button className="btn-primary" onClick={()=>{setShowAdd(true);setEditService(null);setForm({name:"",category:"",price:"",duration:"",capacity:1,icon:"🌿",active:true});}}>+ Nuevo Servicio</button>}/>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:16}}>
+        {services.map(s=>(
+          <div key={s.id} className="card" style={{padding:22,position:"relative",opacity:s.active?1:0.5,transition:"opacity 0.2s"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+              <div style={{width:46,height:46,background:"rgba(29,175,142,0.1)",borderRadius:13,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,border:"1px solid rgba(29,175,142,0.15)"}}>{s.icon}</div>
+              <div style={{display:"flex",gap:6}}>
+                <button style={{background:"none",border:"1px solid rgba(29,175,142,0.15)",color:"#546E7A",borderRadius:8,padding:"4px 10px",fontSize:11,fontWeight:700}} onClick={()=>{setEditService(s);setForm({...s,price:s.price.toString(),duration:s.duration?.toString()||"",capacity:s.capacity});setShowAdd(true);}}>Editar</button>
+                <button style={{background:"none",border:`1px solid ${s.active?"rgba(239,68,68,0.2)":"rgba(29,175,142,0.2)"}`,color:s.active?"#f87171":"#4DD0B8",borderRadius:8,padding:"4px 10px",fontSize:11,fontWeight:700}} onClick={()=>{setServices(p=>p.map(x=>x.id===s.id?{...x,active:!x.active}:x));toast(s.active?"Servicio pausado":"✓ Servicio activado");}}>{s.active?"Pausar":"Activar"}</button>
+              </div>
+            </div>
+            <h3 style={{margin:"0 0 4px",fontSize:15,fontWeight:800,color:"#CFD8DC"}}>{s.name}</h3>
+            <p style={{margin:"0 0 14px",fontSize:12,color:"#546E7A"}}>{s.category}</p>
+            <div style={{display:"flex",gap:18}}>
+              <div>
+                <p style={{margin:"0 0 2px",fontSize:10,color:"#37474F",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em"}}>Precio</p>
+                <p style={{margin:0,fontSize:20,fontWeight:900,fontFamily:"'Sora',sans-serif"}} className="grad-text">{fmt.money(s.price)}</p>
+              </div>
+              {s.duration&&<div>
+                <p style={{margin:"0 0 2px",fontSize:10,color:"#37474F",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em"}}>Duración</p>
+                <p style={{margin:0,fontSize:14,fontWeight:700,color:"#78909C"}}>{s.duration>=1440?`${s.duration/1440}d`:`${s.duration}min`}</p>
+              </div>}
+              <div>
+                <p style={{margin:"0 0 2px",fontSize:10,color:"#37474F",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.06em"}}>Capacidad</p>
+                <p style={{margin:0,fontSize:14,fontWeight:700,color:"#78909C"}}>{s.capacity} pers.</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      {showAdd&&(
+        <Modal title={editService?"Editar Servicio":"Nuevo Servicio"} onClose={()=>{setShowAdd(false);setEditService(null);}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 3fr",gap:12,marginBottom:16}}>
+            <FieldGroup label="Ícono"><select className="select-field" value={form.icon} onChange={f("icon")}>{["🌿","🛏️","🌋","🚙","🍃","💪","🛶","🏖️","🦋","☀️","🌊","🎭"].map(i=><option key={i}>{i}</option>)}</select></FieldGroup>
+            <FieldGroup label="Nombre" required><input className="input-field" placeholder="Tour Volcán Arenal" value={form.name} onChange={f("name")}/></FieldGroup>
+          </div>
+          <FieldGroup label="Categoría"><input className="input-field" placeholder="Tours, Hospedaje, Aventura..." value={form.category} onChange={f("category")}/></FieldGroup>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+            <FieldGroup label="Precio (USD)" required><input className="input-field" type="number" placeholder="0.00" value={form.price} onChange={f("price")}/></FieldGroup>
+            <FieldGroup label="Duración (min)"><input className="input-field" type="number" placeholder="Sin límite" value={form.duration} onChange={f("duration")}/></FieldGroup>
+            <FieldGroup label="Capacidad"><input className="input-field" type="number" min="1" value={form.capacity} onChange={f("capacity")}/></FieldGroup>
+          </div>
+          <div style={{display:"flex",gap:10,marginTop:8,justifyContent:"flex-end"}}>
+            <button className="btn-ghost" onClick={()=>setShowAdd(false)}>Cancelar</button>
+            <button className="btn-primary" onClick={save}>{editService?"Guardar cambios":"Crear servicio"}</button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ANALYTICS
+═══════════════════════════════════════════════════════════════ */
+function AnalyticsView({bookings,customers}) {
+  const totalRev=bookings.filter(b=>b.payStatus==="paid").reduce((s,b)=>s+b.total,0);
+  const completionRate=Math.round(bookings.filter(b=>b.status==="completed").length/Math.max(bookings.filter(b=>b.status!=="pending").length,1)*100);
+  const avgTicket=Math.round(totalRev/Math.max(bookings.filter(b=>b.payStatus==="paid").length,1));
+  const cancelRate=Math.round(bookings.filter(b=>b.status==="cancelled").length/Math.max(bookings.length,1)*100);
+
+  const byService=SERVICES.map(s=>({name:s.name.split(" ").slice(0,2).join(" "),reservas:bookings.filter(b=>b.serviceId===s.id).length,ingresos:bookings.filter(b=>b.serviceId===s.id&&b.payStatus==="paid").reduce((sum,b)=>sum+b.total,0)})).filter(s=>s.reservas>0);
+  const bySource=["website","instagram","whatsapp","referral","manual","walk-in","email"].map(src=>({name:src,value:bookings.filter(b=>b.source===src).length})).filter(s=>s.value>0);
+  const SC=["#5CC831","#1DAF8E","#1565C0","#00ACC1","#43A047","#0288D1","#2E7D32"];
+
+  return (
+    <div style={{padding:"28px 32px",flex:1,overflow:"auto"}}>
+      <SectionHeader title="Analytics" sub="Métricas y rendimiento de tu negocio"/>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16,marginBottom:24}}>
+        <KPICard title="Ingresos totales" value={fmt.money(totalRev)} sub="histórico" trend="↑ Creciendo" up colorA="#5CC831" colorB="#1DAF8E" icon="💰"/>
+        <KPICard title="Tasa completadas" value={`${completionRate}%`} sub="reservas exitosas" trend="↑ Buena" up colorA="#1DAF8E" colorB="#1565C0" icon="✅"/>
+        <KPICard title="Ticket promedio" value={fmt.money(avgTicket)} sub="por reserva" trend="↑ Subiendo" up colorA="#5CC831" colorB="#43A047" icon="🎟️"/>
+        <KPICard title="Cancelaciones" value={`${cancelRate}%`} sub="del total" trend={cancelRate>15?"Alto":"↓ Bajo"} up={cancelRate<=15} colorA="#f87171" colorB="#DC2626" icon="❌"/>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1.5fr 1fr",gap:20,marginBottom:20}}>
+        <div className="card" style={{padding:24}}>
+          <h3 style={{margin:"0 0 20px",fontSize:15,fontWeight:800,color:"#CFD8DC"}}>Ingresos por Servicio</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={byService} margin={{left:-10}}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)"/>
+              <XAxis dataKey="name" tick={{fill:"#37474F",fontSize:10}} axisLine={false} tickLine={false}/>
+              <YAxis tick={{fill:"#37474F",fontSize:10}} axisLine={false} tickLine={false} tickFormatter={v=>`$${v}`}/>
+              <Tooltip contentStyle={{background:"#0D1B2A",border:"1px solid rgba(29,175,142,0.25)",borderRadius:10,fontSize:12}} formatter={(v,n)=>[n==="ingresos"?fmt.money(v):v,n==="ingresos"?"Ingresos":"Reservas"]}/>
+              <Bar dataKey="ingresos" fill="#1DAF8E" radius={[6,6,0,0]} opacity={0.85}/>
+              <Bar dataKey="reservas" fill="#5CC831" radius={[6,6,0,0]} opacity={0.85}/>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="card" style={{padding:24}}>
+          <h3 style={{margin:"0 0 16px",fontSize:15,fontWeight:800,color:"#CFD8DC"}}>Fuente de Reservas</h3>
+          <ResponsiveContainer width="100%" height={160}>
+            <PieChart>
+              <Pie data={bySource} cx="50%" cy="50%" outerRadius={70} dataKey="value" label={({name,percent})=>`${name} ${(percent*100).toFixed(0)}%`} labelLine={false}>
+                {bySource.map((_,i)=><Cell key={i} fill={SC[i%SC.length]}/>)}
+              </Pie>
+              <Tooltip contentStyle={{background:"#0D1B2A",border:"1px solid rgba(29,175,142,0.25)",borderRadius:10,fontSize:12}}/>
+            </PieChart>
+          </ResponsiveContainer>
+          <div style={{display:"flex",flexDirection:"column",gap:8,marginTop:8}}>
+            {bySource.map((s,i)=>(
+              <div key={s.name} style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:8,height:8,borderRadius:"50%",background:SC[i%SC.length]}}/><span style={{fontSize:12,color:"#78909C",textTransform:"capitalize"}}>{s.name}</span></div>
+                <span style={{fontSize:13,fontWeight:800,color:"#CFD8DC"}}>{s.value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="card" style={{padding:24}}>
+        <h3 style={{margin:"0 0 20px",fontSize:15,fontWeight:800,color:"#CFD8DC"}}>Segmentos de Clientes</h3>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:16}}>
+          {[{tag:"vip",label:"VIP",icon:"✦",color:"#FFD54F",desc:"Alto valor, alta frecuencia"},{tag:"frequent",label:"Frecuentes",icon:"⟳",color:"#4DD0B8",desc:"Repiten regularmente"},{tag:"new",label:"Nuevos",icon:"🌱",color:"#7BE050",desc:"Primera experiencia"},{tag:"corporate",label:"Corporativos",icon:"◈",color:"#64B5F6",desc:"Turismo de negocios"}].map(seg=>{
+            const count=customers.filter(c=>c.tags.includes(seg.tag)).length;
+            const pct=Math.round(count/Math.max(customers.length,1)*100);
+            return (
+              <div key={seg.tag} style={{padding:16,background:"rgba(29,175,142,0.04)",borderRadius:13,border:"1px solid rgba(29,175,142,0.09)"}}>
+                <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:12}}>
+                  <div style={{width:36,height:36,borderRadius:10,background:`${seg.color}18`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,color:seg.color}}>{seg.icon}</div>
+                  <div><div style={{fontSize:12,fontWeight:800,color:"#CFD8DC"}}>{seg.label}</div><div style={{fontSize:20,fontWeight:900,color:seg.color,fontFamily:"'Sora',sans-serif",lineHeight:1}}>{count}</div></div>
+                </div>
+                <div className="progress-bar" style={{height:4,marginBottom:6}}><div className="progress-fill" style={{width:`${pct}%`,background:`linear-gradient(90deg,${seg.color},${seg.color}88)`}}/></div>
+                <p style={{margin:0,fontSize:10,color:"#37474F"}}>{pct}% del total · {seg.desc}</p>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SETTINGS
+═══════════════════════════════════════════════════════════════ */
+function SettingsView({tenant,user,toast}) {
+  const [activeTab,setActiveTab]=useState("general");
+  const [notif,setNotif]=useState({email:true,whatsapp:false,sms:false,autoConfirm:true,reminder24h:true,followup:true,reviewRequest:true});
+
+  return (
+    <div style={{padding:"28px 32px",flex:1,overflow:"auto"}}>
+      <SectionHeader title="Configuración" sub="Ajustes del negocio y automatizaciones"/>
+      <div style={{display:"flex",gap:24}}>
+        <div style={{width:190,flexShrink:0}}>
+          {[["general","⊙ General"],["notifications","◉ Notificaciones"],["integrations","⬡ Integraciones"],["billing","◈ Facturación"],["team","◎ Equipo"]].map(([t,l])=>(
+            <div key={t} onClick={()=>setActiveTab(t)} className={`nav-item ${activeTab===t?"active":""}`} style={{padding:"9px 12px",marginBottom:3,cursor:"pointer",fontSize:13,fontWeight:activeTab===t?800:500}}>{l}</div>
+          ))}
+        </div>
+        <div style={{flex:1}}>
+          {activeTab==="general"&&(
+            <div className="card" style={{padding:28}}>
+              <h3 style={{margin:"0 0 24px",fontSize:16,fontWeight:800,color:"#CFD8DC"}}>Información del negocio</h3>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+                <FieldGroup label="Nombre del negocio"><input className="input-field" defaultValue={tenant.name}/></FieldGroup>
+                <FieldGroup label="Slug (URL)"><input className="input-field" defaultValue={tenant.slug}/></FieldGroup>
+                <FieldGroup label="Email"><input className="input-field" type="email" defaultValue="admin@ticoflow.cr"/></FieldGroup>
+                <FieldGroup label="Teléfono"><input className="input-field" defaultValue="+506 2222 3333"/></FieldGroup>
+                <FieldGroup label="Zona horaria">
+                  <select className="select-field" defaultValue="America/Costa_Rica">
+                    <option value="America/Costa_Rica">América/Costa Rica (UTC-6)</option>
+                    <option value="America/Mexico_City">América/Ciudad de México (UTC-6)</option>
+                    <option value="America/New_York">América/Nueva York (UTC-5)</option>
+                  </select>
+                </FieldGroup>
+                <FieldGroup label="Moneda">
+                  <select className="select-field" defaultValue="USD">
+                    <option value="USD">USD — Dólar</option>
+                    <option value="CRC">CRC — Colón</option>
+                    <option value="EUR">EUR — Euro</option>
+                  </select>
+                </FieldGroup>
+              </div>
+              <button className="btn-primary" style={{marginTop:8}} onClick={()=>toast("✓ Configuración guardada")}>Guardar cambios</button>
+            </div>
+          )}
+          {activeTab==="notifications"&&(
+            <div className="card" style={{padding:28}}>
+              <h3 style={{margin:"0 0 6px",fontSize:16,fontWeight:800,color:"#CFD8DC"}}>Automatizaciones</h3>
+              <p style={{margin:"0 0 24px",fontSize:13,color:"#546E7A"}}>Configura cuándo y cómo contactar a tus clientes automáticamente.</p>
+              {[{key:"autoConfirm",label:"Confirmación automática",desc:"Confirmar reservas al recibirlas sin intervención manual",icon:"✓"},{key:"reminder24h",label:"Recordatorio 24h antes",desc:"Enviar recordatorio el día anterior a la experiencia",icon:"🔔"},{key:"followup",label:"Seguimiento post-servicio",desc:"Mensaje 2h después de completar la experiencia",icon:"💬"},{key:"reviewRequest",label:"Solicitar reseña",desc:"Pedir reseña 24h después del servicio completado",icon:"⭐"}].map((item,i)=>(
+                <div key={item.key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"16px 0",borderBottom:i<3?"1px solid rgba(29,175,142,0.07)":"none"}}>
+                  <div style={{display:"flex",gap:12,alignItems:"center"}}>
+                    <div style={{width:36,height:36,background:"rgba(29,175,142,0.08)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>{item.icon}</div>
+                    <div><p style={{margin:"0 0 3px",fontSize:13,fontWeight:700,color:"#CFD8DC"}}>{item.label}</p><p style={{margin:0,fontSize:12,color:"#546E7A"}}>{item.desc}</p></div>
+                  </div>
+                  <div onClick={()=>setNotif(p=>({...p,[item.key]:!p[item.key]}))} style={{width:44,height:24,borderRadius:12,background:notif[item.key]?"linear-gradient(135deg,#5CC831,#1DAF8E)":"rgba(255,255,255,0.1)",cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
+                    <div style={{position:"absolute",top:2,left:notif[item.key]?22:2,width:20,height:20,background:"white",borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 4px rgba(0,0,0,0.3)"}}/>
+                  </div>
+                </div>
+              ))}
+              <div style={{marginTop:24,paddingTop:20,borderTop:"1px solid rgba(29,175,142,0.07)"}}>
+                <h4 style={{margin:"0 0 16px",fontSize:14,fontWeight:800,color:"#CFD8DC"}}>Canales de notificación</h4>
+                <div style={{display:"flex",gap:10}}>
+                  {[["email","📧 Email","Siempre activo"],["whatsapp","💬 WhatsApp","Requiere API"],["sms","📱 SMS","Requiere Twilio"]].map(([k,l,hint])=>(
+                    <div key={k} onClick={()=>setNotif(p=>({...p,[k]:!p[k]}))} style={{flex:1,padding:"14px 16px",borderRadius:12,border:`1px solid ${notif[k]?"rgba(29,175,142,0.4)":"rgba(29,175,142,0.1)"}`,background:notif[k]?"rgba(29,175,142,0.1)":"rgba(29,175,142,0.03)",cursor:"pointer",transition:"all 0.15s"}}>
+                      <p style={{margin:"0 0 4px",fontSize:13,fontWeight:800,color:notif[k]?"#5CC831":"#78909C"}}>{l}</p>
+                      <p style={{margin:0,fontSize:11,color:"#37474F"}}>{hint}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <button className="btn-primary" style={{marginTop:20}} onClick={()=>toast("✓ Automatizaciones guardadas")}>Guardar configuración</button>
+            </div>
+          )}
+          {activeTab==="integrations"&&(
+            <div className="card" style={{padding:28}}>
+              <h3 style={{margin:"0 0 20px",fontSize:16,fontWeight:800,color:"#CFD8DC"}}>Integraciones disponibles</h3>
+              {[{name:"WhatsApp Business",desc:"Envía confirmaciones y recordatorios automáticamente",icon:"💬",connected:false,color:"#25D366"},{name:"Google Calendar",desc:"Sincronización bidireccional de reservas",icon:"📅",connected:false,color:"#4285F4"},{name:"Stripe",desc:"Pagos online, reembolsos y facturación automática",icon:"💳",connected:true,color:"#6772E5"},{name:"SendGrid",desc:"Emails transaccionales y de marketing",icon:"📧",connected:true,color:"#1A82E2"},{name:"Zapier",desc:"Conecta con cientos de apps externas",icon:"⚡",connected:false,color:"#FF4A00"}].map(intg=>(
+                <div key={intg.name} style={{display:"flex",alignItems:"center",gap:14,padding:"16px 0",borderBottom:"1px solid rgba(29,175,142,0.07)"}}>
+                  <div style={{width:44,height:44,borderRadius:12,background:`${intg.color}15`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>{intg.icon}</div>
+                  <div style={{flex:1}}><p style={{margin:"0 0 3px",fontSize:13,fontWeight:800,color:"#CFD8DC"}}>{intg.name}</p><p style={{margin:0,fontSize:12,color:"#546E7A"}}>{intg.desc}</p></div>
+                  <button style={{padding:"7px 16px",borderRadius:9,border:`1px solid ${intg.connected?"rgba(29,175,142,0.3)":"rgba(92,200,49,0.25)"}`,background:intg.connected?"rgba(29,175,142,0.1)":"rgba(92,200,49,0.07)",color:intg.connected?"#4DD0B8":"#7BE050",fontSize:12,fontWeight:800}} onClick={()=>toast(intg.connected?`${intg.name} desconectado`:`Redirigiendo a ${intg.name}...`,intg.connected?"warning":"success")}>
+                    {intg.connected?"✓ Conectado":"Conectar"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {(activeTab==="billing"||activeTab==="team")&&(
+            <div className="card" style={{padding:48,textAlign:"center",color:"#37474F"}}>
+              <HummingbirdIcon size={56} style={{margin:"0 auto 16px",display:"block",opacity:0.4}}/>
+              <h3 style={{color:"#CFD8DC",marginBottom:8}}>{activeTab==="billing"?"Facturación":"Gestión de equipo"}</h3>
+              <p>Disponible en producción con Stripe Billing e invitaciones de equipo.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   NEW BOOKING MODAL
+═══════════════════════════════════════════════════════════════ */
+function NewBookingModal({customers,services,users,onClose,onSave}) {
+  const [form,setForm]=useState({customerId:"",serviceId:"",staffId:"",startDate:TODAY,startTime:"10:00",guests:1,notes:"",source:"website",autoConfirm:true});
+  const [errors,setErrors]=useState({});
+  const f=k=>e=>setForm(p=>({...p,[k]:e.target.value}));
+  const sel=services.find(s=>s.id===form.serviceId);
+  const total=sel?sel.price*parseInt(form.guests||1):0;
+
+  const save=()=>{
+    const e={};
+    if(!form.customerId)e.customerId="Selecciona un cliente";
+    if(!form.serviceId)e.serviceId="Selecciona un servicio";
+    setErrors(e);if(Object.keys(e).length>0)return;
+    const start=`${form.startDate}T${form.startTime}:00`;
+    let end=null;
+    if(sel?.duration){const d=new Date(start);d.setMinutes(d.getMinutes()+sel.duration);end=d.toISOString();}
+    onSave({customerId:form.customerId,serviceId:form.serviceId,staffId:form.staffId||users[0].id,start,end,guests:parseInt(form.guests),basePrice:sel?.price||0,total,currency:"USD",status:form.autoConfirm?"confirmed":"pending",payStatus:"pending",amountPaid:0,source:form.source,notes:form.notes,internalNotes:""});
+  };
+
+  return (
+    <Modal title="Nueva Reserva" onClose={onClose} width={600}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+        <div style={{gridColumn:"1/-1"}}>
+          <FieldGroup label="Cliente" required>
+            <select className="select-field" value={form.customerId} onChange={f("customerId")} style={{borderColor:errors.customerId?"#f87171":undefined}}>
+              <option value="">Seleccionar cliente...</option>
+              {customers.map(c=><option key={c.id} value={c.id}>{c.firstName} {c.lastName} — {c.email}</option>)}
+            </select>
+            {errors.customerId&&<p style={{color:"#f87171",fontSize:11,marginTop:4}}>{errors.customerId}</p>}
+          </FieldGroup>
+        </div>
+        <div style={{gridColumn:"1/-1"}}>
+          <FieldGroup label="Servicio / Experiencia" required>
+            <select className="select-field" value={form.serviceId} onChange={f("serviceId")} style={{borderColor:errors.serviceId?"#f87171":undefined}}>
+              <option value="">Seleccionar servicio...</option>
+              {services.filter(s=>s.active).map(s=><option key={s.id} value={s.id}>{s.icon} {s.name} — ${s.price}</option>)}
+            </select>
+            {errors.serviceId&&<p style={{color:"#f87171",fontSize:11,marginTop:4}}>{errors.serviceId}</p>}
+          </FieldGroup>
+        </div>
+        <FieldGroup label="Fecha" required><input className="input-field" type="date" value={form.startDate} onChange={f("startDate")} min={TODAY}/></FieldGroup>
+        <FieldGroup label="Hora de inicio"><input className="input-field" type="time" value={form.startTime} onChange={f("startTime")}/></FieldGroup>
+        <FieldGroup label="Personas"><input className="input-field" type="number" min="1" max={sel?.capacity||20} value={form.guests} onChange={f("guests")}/></FieldGroup>
+        <FieldGroup label="Staff asignado">
+          <select className="select-field" value={form.staffId} onChange={f("staffId")}>
+            <option value="">Sin asignar</option>
+            {users.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>
+        </FieldGroup>
+        <FieldGroup label="Canal de origen">
+          <select className="select-field" value={form.source} onChange={f("source")}>
+            {["website","instagram","whatsapp","referral","manual","walk-in","email"].map(s=><option key={s}>{s}</option>)}
+          </select>
+        </FieldGroup>
+        <div style={{display:"flex",flexDirection:"column",justifyContent:"flex-end",paddingBottom:16}}>
+          <label style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}}>
+            <div onClick={()=>setForm(p=>({...p,autoConfirm:!p.autoConfirm}))} style={{width:40,height:22,borderRadius:11,background:form.autoConfirm?"linear-gradient(135deg,#5CC831,#1DAF8E)":"rgba(255,255,255,0.1)",cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
+              <div style={{position:"absolute",top:2,left:form.autoConfirm?20:2,width:18,height:18,background:"white",borderRadius:"50%",transition:"left 0.2s"}}/>
+            </div>
+            <span style={{fontSize:13,color:"#78909C"}}>Confirmar automáticamente</span>
+          </label>
+        </div>
+        <div style={{gridColumn:"1/-1"}}>
+          <FieldGroup label="Notas para el cliente"><textarea className="input-field" rows={2} style={{resize:"vertical"}} placeholder="Peticiones especiales, puntos de encuentro..." value={form.notes} onChange={f("notes")}/></FieldGroup>
+        </div>
+      </div>
+      {sel&&(
+        <div style={{background:"rgba(29,175,142,0.07)",border:"1px solid rgba(29,175,142,0.18)",borderRadius:13,padding:"14px 18px",marginTop:4,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <p style={{margin:"0 0 2px",fontSize:12,color:"#78909C"}}>{sel.icon} {sel.name} × {form.guests} persona{form.guests>1?"s":""}</p>
+            <p style={{margin:0,fontSize:11,color:"#37474F"}}>{sel.duration?sel.duration>=1440?`${sel.duration/1440} día(s)`:`${sel.duration} minutos`:"Sin límite"}</p>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <p style={{margin:"0 0 2px",fontSize:11,color:"#37474F"}}>Total estimado</p>
+            <p style={{margin:0,fontSize:22,fontWeight:900,fontFamily:"'Sora',sans-serif"}} className="grad-text">{fmt.money(total)}</p>
+          </div>
+        </div>
+      )}
+      <div style={{display:"flex",gap:10,marginTop:20,justifyContent:"flex-end"}}>
+        <button className="btn-ghost" onClick={onClose}>Cancelar</button>
+        <button className="btn-primary" onClick={save}>Crear Reserva →</button>
+      </div>
+    </Modal>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BOOKING DETAIL MODAL
+═══════════════════════════════════════════════════════════════ */
+function BookingDetailModal({booking,getCustomer,getService,onClose,changeStatus,setShowConfirm,toast}) {
+  const [intNotes,setIntNotes]=useState(booking?.internalNotes||"");
+  if(!booking)return null;
+  const c=getCustomer(booking.customerId),s=getService(booking.serviceId);
+  const transitions=STATUS_TRANSITIONS[booking.status]||[];
+  const actionLabels={confirmed:"✓ Confirmar",checked_in:"➤ Check-in",completed:"✓ Completar",cancelled:"✕ Cancelar",no_show:"⊘ No llegó"};
+
+  return (
+    <Modal title={`Reserva ${booking.ref}`} onClose={onClose} width={580}>
+      <div style={{display:"flex",gap:14,alignItems:"center",marginBottom:20,padding:"14px 18px",background:"rgba(29,175,142,0.05)",borderRadius:13,border:"1px solid rgba(29,175,142,0.1)"}}>
+        <Avatar first={c?.firstName} last={c?.lastName} size={46}/>
+        <div style={{flex:1}}>
+          <h3 style={{margin:"0 0 3px",fontSize:16,fontWeight:800,color:"#E8F5E9"}}>{c?.firstName} {c?.lastName}</h3>
+          <p style={{margin:0,fontSize:12,color:"#546E7A"}}>{c?.email} · {c?.phone}</p>
+        </div>
+        <div style={{textAlign:"right"}}><StatusBadge status={booking.status}/><p style={{margin:"6px 0 0",fontSize:11,color:booking.payStatus==="paid"?"#4DD0B8":"#FFD54F",fontWeight:700}}>{PAY_LABELS[booking.payStatus]}</p></div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20}}>
+        {[["Servicio",`${s?.icon||""} ${s?.name||"—"}`],["Fecha y hora",fmt.datetime(booking.start)],["Fin / duración",booking.end?fmt.datetime(booking.end):"Sin límite"],["Personas",`${booking.guests} persona${booking.guests>1?"s":""}`],["Canal",booking.source],["Creada el",fmt.date(booking.createdAt)]].map(([label,val])=>(
+          <div key={label} style={{padding:"11px 13px",background:"rgba(29,175,142,0.04)",borderRadius:10,border:"1px solid rgba(29,175,142,0.07)"}}>
+            <p style={{margin:"0 0 4px",fontSize:10,fontWeight:800,color:"#37474F",textTransform:"uppercase",letterSpacing:"0.06em"}}>{label}</p>
+            <p style={{margin:0,fontSize:13,color:"#CFD8DC",fontWeight:600}}>{val}</p>
+          </div>
+        ))}
+      </div>
+      <div style={{background:"rgba(29,175,142,0.06)",border:"1px solid rgba(29,175,142,0.12)",borderRadius:13,padding:"14px 18px",marginBottom:20,display:"flex",justifyContent:"space-between"}}>
+        {[["Precio base",fmt.money(booking.basePrice),"#CFD8DC"],["Total",fmt.money(booking.total),"grad"],["Pagado",fmt.money(booking.amountPaid),booking.amountPaid>=booking.total?"#4DD0B8":"#f87171"]].map(([l,v,col])=>(
+          <div key={l} style={{textAlign:"center"}}>
+            <p style={{margin:"0 0 3px",fontSize:10,color:"#37474F",textTransform:"uppercase",letterSpacing:"0.06em",fontWeight:700}}>{l}</p>
+            {col==="grad"?<p style={{margin:0,fontSize:19,fontWeight:900,fontFamily:"'Sora',sans-serif"}} className="grad-text">{v}</p>:<p style={{margin:0,fontSize:19,fontWeight:900,color:col,fontFamily:"'Sora',sans-serif"}}>{v}</p>}
+          </div>
+        ))}
+      </div>
+      {booking.notes&&<div style={{padding:"12px 14px",background:"rgba(21,101,192,0.08)",borderRadius:10,marginBottom:14,border:"1px solid rgba(21,101,192,0.15)"}}><p style={{margin:"0 0 4px",fontSize:10,fontWeight:800,color:"#64B5F6",textTransform:"uppercase",letterSpacing:"0.06em"}}>Nota del cliente</p><p style={{margin:0,fontSize:13,color:"#90CAF9"}}>{booking.notes}</p></div>}
+      <div style={{marginBottom:20}}>
+        <label style={{display:"block",fontSize:11,fontWeight:800,color:"#546E7A",marginBottom:6,letterSpacing:"0.06em",textTransform:"uppercase"}}>Notas internas (solo staff)</label>
+        <textarea className="input-field" rows={2} style={{resize:"vertical"}} placeholder="Añade notas internas..." value={intNotes} onChange={e=>setIntNotes(e.target.value)}/>
+      </div>
+      <div style={{display:"flex",gap:10,marginBottom:20}}>
+        {[["Confirmación",booking.confirmSent],["Recordatorio",booking.reminderSent]].map(([l,sent])=>(
+          <div key={l} style={{flex:1,padding:"8px 12px",background:sent?"rgba(29,175,142,0.07)":"rgba(255,255,255,0.02)",borderRadius:9,border:`1px solid ${sent?"rgba(29,175,142,0.2)":"rgba(255,255,255,0.05)"}`,textAlign:"center"}}>
+            <p style={{margin:"0 0 2px",fontSize:10,color:"#37474F",textTransform:"uppercase",fontWeight:700}}>{l}</p>
+            <p style={{margin:0,fontSize:12,color:sent?"#4DD0B8":"#f87171",fontWeight:800}}>{sent?"✓ Enviada":"Pendiente"}</p>
+          </div>
+        ))}
+        <button style={{flex:1,background:"rgba(21,101,192,0.1)",border:"1px solid rgba(21,101,192,0.2)",color:"#64B5F6",borderRadius:9,fontSize:12,fontWeight:800,padding:"8px 12px"}} onClick={()=>toast("📩 Notificación enviada")}>📩 Enviar ahora</button>
+      </div>
+      {transitions.length>0&&(
+        <div style={{display:"flex",gap:8,paddingTop:16,borderTop:"1px solid rgba(29,175,142,0.08)"}}>
+          <button className="btn-ghost" style={{flex:1}} onClick={onClose}>Cerrar</button>
+          {transitions.map(ns=>(
+            <button key={ns} style={{flex:1}} className={ns==="cancelled"||ns==="no_show"?"btn-danger":"btn-primary"} onClick={()=>{if(ns==="cancelled"||ns==="no_show")setShowConfirm({title:ns==="cancelled"?"Cancelar reserva":"Marcar como no llegó",message:`¿Confirmas esta acción para ${booking.ref}? Se notificará al cliente.`,confirmLabel:ns==="cancelled"?"Sí, cancelar":"Marcar no llegó",onConfirm:()=>changeStatus(booking.id,ns),danger:true});else changeStatus(booking.id,ns);}}>
+              {actionLabels[ns]||ns}
+            </button>
+          ))}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   NEW CUSTOMER MODAL
+═══════════════════════════════════════════════════════════════ */
+function NewCustomerModal({onClose,onSave}) {
+  const [form,setForm]=useState({firstName:"",lastName:"",email:"",phone:"",whatsapp:"",nationality:"Costa Rica",notes:"",source:"website"});
+  const f=k=>e=>setForm(p=>({...p,[k]:e.target.value}));
+  return (
+    <Modal title="Nuevo Cliente" onClose={onClose}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+        <FieldGroup label="Nombre" required><input className="input-field" placeholder="Valentina" value={form.firstName} onChange={f("firstName")}/></FieldGroup>
+        <FieldGroup label="Apellido"><input className="input-field" placeholder="Cruz" value={form.lastName} onChange={f("lastName")}/></FieldGroup>
+        <FieldGroup label="Email"><input className="input-field" type="email" placeholder="cliente@email.com" value={form.email} onChange={f("email")}/></FieldGroup>
+        <FieldGroup label="Teléfono"><input className="input-field" placeholder="+506 8888 0000" value={form.phone} onChange={f("phone")}/></FieldGroup>
+        <FieldGroup label="WhatsApp"><input className="input-field" placeholder="+506 8888 0000" value={form.whatsapp} onChange={f("whatsapp")}/></FieldGroup>
+        <FieldGroup label="Nacionalidad"><input className="input-field" value={form.nationality} onChange={f("nationality")}/></FieldGroup>
+        <FieldGroup label="Cómo llegó a TicoFlow">
+          <select className="select-field" value={form.source} onChange={f("source")}>{["website","instagram","whatsapp","referral","manual","walk-in"].map(s=><option key={s}>{s}</option>)}</select>
+        </FieldGroup>
+        <div style={{gridColumn:"1/-1"}}>
+          <FieldGroup label="Notas internas"><textarea className="input-field" rows={2} placeholder="Preferencias, alergias, notas relevantes..." value={form.notes} onChange={f("notes")} style={{resize:"vertical"}}/></FieldGroup>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:10,marginTop:8,justifyContent:"flex-end"}}>
+        <button className="btn-ghost" onClick={onClose}>Cancelar</button>
+        <button className="btn-primary" onClick={()=>{if(!form.firstName)return;onSave({...form,lastVisit:TODAY});}}>Registrar cliente →</button>
+      </div>
+    </Modal>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CUSTOMER PANEL
+═══════════════════════════════════════════════════════════════ */
+function CustomerPanel({customer,bookings,getService,onClose,onUpdate,toast}) {
+  const [activeTab,setActiveTab]=useState("profile");
+  const [editNotes,setEditNotes]=useState(false);
+  const [notes,setNotes]=useState(customer?.notes||"");
+  if(!customer)return null;
+  const c=customer;
+  const allTags=["vip","frequent","new","corporate"];
+  const hasTag=t=>c.tags.includes(t);
+  const toggleTag=t=>{const nt=hasTag(t)?c.tags.filter(x=>x!==t):[...c.tags,t];onUpdate({...c,tags:nt});toast(hasTag(t)?"Etiqueta removida":"✓ Etiqueta añadida");};
+
+  return (
+    <>
+      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:499}} onClick={onClose}/>
+      <div className="slide-panel">
+        <div style={{padding:"24px 24px 0",borderBottom:"1px solid rgba(29,175,142,0.1)",position:"sticky",top:0,background:"#0C1623",zIndex:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+            <div style={{display:"flex",gap:12,alignItems:"center"}}>
+              <Avatar first={c.firstName} last={c.lastName} size={50}/>
+              <div>
+                <h2 style={{margin:"0 0 4px",fontSize:18,fontWeight:900,color:"#E8F5E9",fontFamily:"'Sora',sans-serif"}}>{c.firstName} {c.lastName}</h2>
+                <p style={{margin:0,fontSize:12,color:"#546E7A"}}>{c.nationality} · via {c.source}</p>
+              </div>
+            </div>
+            <button onClick={onClose} style={{background:"rgba(29,175,142,0.07)",border:"1px solid rgba(29,175,142,0.15)",color:"#546E7A",width:30,height:30,borderRadius:9,fontSize:16}}>×</button>
+          </div>
+          <div style={{display:"flex",gap:5,paddingBottom:16}}>
+            {[["profile","Perfil"],["bookings","Reservas"],["notes","Notas"]].map(([t,l])=>(
+              <button key={t} onClick={()=>setActiveTab(t)} style={{padding:"6px 14px",borderRadius:20,border:"none",fontSize:12,fontWeight:800,background:activeTab===t?"rgba(29,175,142,0.18)":"transparent",color:activeTab===t?"#5CC831":"#546E7A",transition:"all 0.15s"}}>{l}</button>
+            ))}
+          </div>
+        </div>
+        <div style={{padding:24}}>
+          {activeTab==="profile"&&<>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:20}}>
+              {[["Reservas",c.totalBookings,"#4DD0B8"],["Gastado",fmt.money(c.totalSpent),"#7BE050"],["Última visita",fmt.rel(c.lastVisit),"#FFD54F"]].map(([l,v,col])=>(
+                <div key={l} style={{padding:"12px",background:"rgba(29,175,142,0.04)",borderRadius:10,textAlign:"center",border:"1px solid rgba(29,175,142,0.08)"}}>
+                  <p style={{margin:"0 0 4px",fontSize:10,color:"#37474F",textTransform:"uppercase",letterSpacing:"0.06em",fontWeight:700}}>{l}</p>
+                  <p style={{margin:0,fontSize:15,fontWeight:900,color:col,fontFamily:"'Sora',sans-serif"}}>{v}</p>
+                </div>
+              ))}
+            </div>
+            <div style={{padding:"13px 16px",background:"rgba(29,175,142,0.04)",borderRadius:12,marginBottom:16,border:"1px solid rgba(29,175,142,0.08)"}}>
+              {[["📧 Email",c.email],["📱 Teléfono",c.phone],["💬 WhatsApp",c.whatsapp||"—"]].map(([l,v])=>(
+                <div key={l} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:l.startsWith("💬")?"none":"1px solid rgba(29,175,142,0.06)"}}>
+                  <span style={{fontSize:12,color:"#546E7A"}}>{l}</span>
+                  <span style={{fontSize:12,color:"#CFD8DC",fontWeight:600}}>{v||"—"}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{marginBottom:16}}>
+              <p style={{margin:"0 0 10px",fontSize:11,fontWeight:800,color:"#546E7A",textTransform:"uppercase",letterSpacing:"0.06em"}}>Etiquetas</p>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {allTags.map(t=>(
+                  <button key={t} onClick={()=>toggleTag(t)} style={{padding:"5px 12px",borderRadius:20,border:`1px solid ${hasTag(t)?"rgba(29,175,142,0.4)":"rgba(29,175,142,0.12)"}`,background:hasTag(t)?"rgba(29,175,142,0.14)":"transparent",color:hasTag(t)?"#5CC831":"#546E7A",fontSize:12,fontWeight:800,transition:"all 0.15s"}}>
+                    {hasTag(t)?"✓ ":"+ "}{t==="vip"?"VIP":t==="frequent"?"Frecuente":t==="new"?"Nuevo":"Corporativo"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              {[["💬 WhatsApp","success"],["📧 Email","success"],["⭐ Pedir reseña","success"],["🚫 Reportar","warning"]].map(([l,t])=>(
+                <button key={l} className="btn-ghost" style={{fontSize:12,padding:"9px 12px"}} onClick={()=>toast(l+" — enviado",t)}>{l}</button>
+              ))}
+            </div>
+          </>}
+          {activeTab==="bookings"&&(
+            <div>
+              <p style={{margin:"0 0 14px",fontSize:12,color:"#546E7A"}}>{bookings.length} reservas en total</p>
+              {bookings.length===0?<div style={{textAlign:"center",padding:"32px",color:"#37474F"}}><HummingbirdIcon size={40} style={{opacity:0.3,margin:"0 auto 8px",display:"block"}}/><p>Sin reservas registradas</p></div>:bookings.map(b=>{
+                const s=getService(b.serviceId);
+                return (
+                  <div key={b.id} style={{padding:"12px 14px",background:"rgba(29,175,142,0.04)",borderRadius:11,marginBottom:8,border:"1px solid rgba(29,175,142,0.08)"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                      <span style={{fontSize:11,fontWeight:900,color:"#1DAF8E",fontFamily:"monospace"}}>{b.ref}</span>
+                      <StatusBadge status={b.status}/>
+                    </div>
+                    <p style={{margin:"0 0 4px",fontSize:13,color:"#CFD8DC",fontWeight:700}}>{s?.icon} {s?.name}</p>
+                    <div style={{display:"flex",justifyContent:"space-between"}}>
+                      <span style={{fontSize:11,color:"#546E7A"}}>{fmt.datetime(b.start)}</span>
+                      <span style={{fontSize:13,fontWeight:800,color:"#4DD0B8"}}>{fmt.money(b.total)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {activeTab==="notes"&&(
+            <div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                <p style={{margin:0,fontSize:13,fontWeight:800,color:"#CFD8DC"}}>Notas internas</p>
+                <button className="btn-ghost" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>{if(editNotes){onUpdate({...c,notes});toast("✓ Notas guardadas");}setEditNotes(!editNotes);}}>{editNotes?"✓ Guardar":"✎ Editar"}</button>
+              </div>
+              {editNotes?<textarea className="input-field" rows={8} value={notes} onChange={e=>setNotes(e.target.value)} style={{resize:"vertical"}} placeholder="Preferencias, alergias, historial..."/>:<div style={{padding:"14px 16px",background:"rgba(29,175,142,0.04)",borderRadius:10,border:"1px solid rgba(29,175,142,0.08)",fontSize:13,color:notes?"#CFD8DC":"#37474F",lineHeight:1.7,minHeight:80}}>{notes||"Sin notas. Haz clic en Editar para añadir."}</div>}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CONFIRM MODAL
+═══════════════════════════════════════════════════════════════ */
+function ConfirmModal({title,message,confirmLabel,onConfirm,onCancel,danger}) {
+  return (
+    <div className="modal-overlay">
+      <div style={{background:"#0B1622",border:`1px solid ${danger?"rgba(239,68,68,0.25)":"rgba(29,175,142,0.2)"}`,borderRadius:18,width:"100%",maxWidth:400,padding:28,animation:"scaleIn 0.2s ease"}}>
+        <div style={{width:48,height:48,borderRadius:14,background:danger?"rgba(239,68,68,0.1)":"rgba(29,175,142,0.1)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,marginBottom:16}}>{danger?"⚠️":"❓"}</div>
+        <h3 style={{margin:"0 0 10px",fontSize:17,fontWeight:900,color:"#E8F5E9",fontFamily:"'Sora',sans-serif"}}>{title}</h3>
+        <p style={{margin:"0 0 24px",fontSize:13,color:"#78909C",lineHeight:1.6}}>{message}</p>
+        <div style={{display:"flex",gap:10}}>
+          <button className="btn-ghost" style={{flex:1}} onClick={onCancel}>Cancelar</button>
+          <button style={{flex:1}} className={danger?"btn-danger":"btn-primary"} onClick={onConfirm}>{confirmLabel}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
